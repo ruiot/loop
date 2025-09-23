@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- 渦巻きパイプパズル v20250923212500 - 純粋パス長色分け+アニメーション -->
+<!-- 渦巻きパイプパズル v20250923214500 - バグ修正・虹色10段階・ハイスコア記録版 -->
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -47,30 +47,14 @@
             z-index: 10;
         }
         
-        .speed-selector {
-            position: absolute;
-            bottom: 15px;
-            left: 15px;
-            z-index: 10;
-        }
-        
-        .speed-dropdown {
-            background: rgba(0,0,0,0.8);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.3);
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-            min-width: 60px;
-        }
-        
-        .speed-dropdown:hover {
-            background: rgba(0,0,0,0.9);
-        }
-        
         .score-display {
             font-size: 18px;
+        }
+        
+        .high-score {
+            font-size: 14px;
+            color: #FFD700;
+            margin-left: 15px;
         }
         
         .game-board-container {
@@ -105,7 +89,6 @@
             position: relative;
             background: linear-gradient(145deg, #555, #333);
             border-radius: 3px;
-            /* アニメーション付き色変化 */
             transition: filter 0.8s ease-in-out, box-shadow 0.8s ease-in-out;
         }
         
@@ -118,49 +101,42 @@
             transition: background 0.8s ease-in-out;
         }
         
-        /* パス色分け - 基本6色（純粋パス長ベース） */
-        .pipe.path-0::before,
-        .pipe.path-0::after {
-            background: linear-gradient(145deg, #FF6B6B, #FF5252); /* 赤 - 1-2個 */
+        /* 10段階色分け（滑らかな変化、10以上は明るさで区別） */
+        .pipe.path-0::before, .pipe.path-0::after { 
+            background: linear-gradient(145deg, #FF0000, #E60000); /* 赤 - 1個 */
+        }
+        .pipe.path-1::before, .pipe.path-1::after { 
+            background: linear-gradient(145deg, #FF4000, #E63A00); /* 赤オレンジ - 2個 */
+        }
+        .pipe.path-2::before, .pipe.path-2::after { 
+            background: linear-gradient(145deg, #FF8000, #E67300); /* オレンジ - 3個 */
+        }
+        .pipe.path-3::before, .pipe.path-3::after { 
+            background: linear-gradient(145deg, #FFBF00, #E6AC00); /* 黄オレンジ - 4個 */
+        }
+        .pipe.path-4::before, .pipe.path-4::after { 
+            background: linear-gradient(145deg, #FFFF00, #E6E600); /* 黄 - 5個 */
+        }
+        .pipe.path-5::before, .pipe.path-5::after { 
+            background: linear-gradient(145deg, #80FF00, #73E600); /* 黄緑 - 6個 */
+        }
+        .pipe.path-6::before, .pipe.path-6::after { 
+            background: linear-gradient(145deg, #00FF00, #00E600); /* 緑 - 7個 */
+        }
+        .pipe.path-7::before, .pipe.path-7::after { 
+            background: linear-gradient(145deg, #00FF80, #00E673); /* 緑青 - 8個 */
+        }
+        .pipe.path-8::before, .pipe.path-8::after { 
+            background: linear-gradient(145deg, #0080FF, #0073E6); /* 青 - 9個 */
+        }
+        .pipe.path-9::before, .pipe.path-9::after { 
+            background: linear-gradient(145deg, #8000FF, #7300E6); /* 紫 - 10個 */
         }
         
-        .pipe.path-1::before,
-        .pipe.path-1::after {
-            background: linear-gradient(145deg, #4ECDC4, #26A69A); /* 青緑 - 3-4個 */
-        }
-        
-        .pipe.path-2::before,
-        .pipe.path-2::after {
-            background: linear-gradient(145deg, #FFE066, #FFD54F); /* 黄 - 5-6個 */
-        }
-        
-        .pipe.path-3::before,
-        .pipe.path-3::after {
-            background: linear-gradient(145deg, #98D8C8, #4CAF50); /* 緑 - 7-8個 */
-        }
-        
-        .pipe.path-4::before,
-        .pipe.path-4::after {
-            background: linear-gradient(145deg, #F7DC6F, #FF9800); /* オレンジ - 9-10個 */
-        }
-        
-        .pipe.path-5::before,
-        .pipe.path-5::after {
-            background: linear-gradient(145deg, #BB8FCE, #9C27B0); /* 紫 - 11-12個+ */
-        }
-        
-        /* パス長による濃淡調整 */
-        .pipe.length-short {
-            filter: brightness(0.7) saturate(0.8);
-        }
-        
-        .pipe.length-medium {
-            filter: brightness(1.0) saturate(1.0);
-        }
-        
-        .pipe.length-long {
-            filter: brightness(1.3) saturate(1.2);
-            box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+        /* 10個以上の明るさ区別 */
+        .pipe.length-10plus {
+            filter: brightness(1.4) saturate(1.4);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
         }
         
         /* I字パイプ */
@@ -251,9 +227,9 @@
             }
         }
         
-        /* ブロック消滅アニメーション */
+        /* ブロック消滅アニメーション - ゆっくり消滅 */
         .block-disappear {
-            animation: disappear 0.8s ease-in-out forwards;
+            animation: disappear 1.2s ease-in-out forwards;
         }
         
         @keyframes disappear {
@@ -261,12 +237,16 @@
                 transform: scale(1.1); 
                 opacity: 1;
             }
-            30% { 
-                transform: scale(1.2) rotate(10deg); 
-                opacity: 0.8;
+            20% { 
+                transform: scale(1.3) rotate(5deg); 
+                opacity: 0.9;
+            }
+            60% { 
+                transform: scale(1.1) rotate(15deg); 
+                opacity: 0.5;
             }
             100% { 
-                transform: scale(0) rotate(180deg); 
+                transform: scale(0) rotate(90deg); 
                 opacity: 0;
             }
         }
@@ -414,6 +394,49 @@
             border-color: #45a049;
         }
         
+        .speed-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .speed-option {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .speed-option:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .speed-option.selected {
+            background: #4CAF50;
+            border-color: #45a049;
+        }
+        
+        .settings-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        .settings-option label {
+            font-size: 14px;
+        }
+        
+        .settings-option input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+        
         .settings-buttons {
             display: flex;
             gap: 10px;
@@ -444,28 +467,30 @@
         .settings-btn.primary:hover {
             background: #45a049;
         }
+        
+        .reset-btn {
+            background: #FF6B6B;
+            border-color: #FF5252;
+        }
+        
+        .reset-btn:hover {
+            background: #FF5252;
+        }
     </style>
 </head>
 <body>
     <div class="game-container">
         <div class="top-bar">
-            <div class="score-display">スコア: <span id="score">0</span></div>
+            <div class="score-display">
+                スコア: <span id="score">0</span>
+                <span class="high-score">最高: <span id="highScore">0</span></span>
+            </div>
 
             <div class="controls-container">
                 <button onclick="openSettings()" id="settingsBtn">⚙️</button>
                 <button onclick="togglePause()" id="pauseBtn">⏸️</button>
                 <button onclick="newGame()">🔄</button>
             </div>
-        </div>
-        
-        <div class="speed-selector">
-            <select class="speed-dropdown" id="speedSelect" onchange="changeSpeed()">
-                <option value="0.5">0.5x</option>
-                <option value="1" selected>1x</option>
-                <option value="1.5">1.5x</option>
-                <option value="2">2x</option>
-                <option value="4">4x</option>
-            </select>
         </div>
         
         <div class="game-board-container">
@@ -491,11 +516,42 @@
                     <div class="size-option" data-size="5">5×5</div>
                     <div class="size-option" data-size="7">7×7</div>
                     <div class="size-option" data-size="9">9×9</div>
-                    <div class="size-option" data-size="11">11×11</div>
+                    <div class="size-option selected" data-size="11">11×11</div>
                     <div class="size-option" data-size="13">13×13</div>
                     <div class="size-option" data-size="15">15×15</div>
-                    <div class="size-option selected" data-size="17">17×17</div>
+                    <div class="size-option" data-size="17">17×17</div>
                     <div class="size-option" data-size="19">19×19</div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>ゲーム速度</h4>
+                <div class="speed-grid">
+                    <div class="speed-option" data-speed="0.5">0.5x</div>
+                    <div class="speed-option selected" data-speed="1">1x</div>
+                    <div class="speed-option" data-speed="1.5">1.5x</div>
+                    <div class="speed-option" data-speed="2">2x</div>
+                    <div class="speed-option" data-speed="4">4x</div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>オーディオ設定</h4>
+                <div class="settings-option">
+                    <label>サウンド効果</label>
+                    <input type="checkbox" id="soundEffects" checked>
+                </div>
+                <div class="settings-option">
+                    <label>BGM</label>
+                    <input type="checkbox" id="backgroundMusic">
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>記録</h4>
+                <div class="settings-option">
+                    <label>ハイスコア: <span id="settingsHighScore">0</span></label>
+                    <button class="settings-btn reset-btn" onclick="resetHighScore()">リセット</button>
                 </div>
             </div>
             
@@ -509,12 +565,231 @@
     <script>
         let game = null;
         let tempSettings = {
-            fieldSize: 17
+            fieldSize: 11,
+            gameSpeed: 1,
+            soundEffects: true,
+            backgroundMusic: false
         };
+        
+        // ハイスコア管理
+        class HighScoreManager {
+            constructor() {
+                this.storageKey = 'pipeHighScore';
+            }
+            
+            getHighScore() {
+                return parseInt(localStorage.getItem(this.storageKey) || '0');
+            }
+            
+            setHighScore(score) {
+                const currentHigh = this.getHighScore();
+                if (score > currentHigh) {
+                    localStorage.setItem(this.storageKey, score.toString());
+                    return true; // 新記録
+                }
+                return false;
+            }
+            
+            resetHighScore() {
+                localStorage.removeItem(this.storageKey);
+                this.updateHighScoreDisplay();
+            }
+            
+            updateHighScoreDisplay() {
+                const highScore = this.getHighScore();
+                const highScoreEl = document.getElementById('highScore');
+                const settingsHighScoreEl = document.getElementById('settingsHighScore');
+                if (highScoreEl) highScoreEl.textContent = highScore;
+                if (settingsHighScoreEl) settingsHighScoreEl.textContent = highScore;
+            }
+        }
+        
+        // サウンド管理システム
+        class SoundManager {
+            constructor() {
+                this.enabled = true;
+                this.musicEnabled = false;
+                this.audioContext = null;
+                this.bgmGain = null;
+                this.initAudio();
+            }
+            
+            async initAudio() {
+                try {
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    this.bgmGain = this.audioContext.createGain();
+                    this.bgmGain.connect(this.audioContext.destination);
+                    this.emergencyBeepInterval = null;
+                } catch (error) {
+                    console.log('Web Audio API not supported, using fallback');
+                }
+            }
+            
+            // パイプ回転音（ホワイトノイズ）
+            playRotateSound() {
+                if (!this.enabled) return;
+                this.playWhiteNoise(0.05, 0.03); // 短く、小さく
+            }
+            
+            // ループ完成音（倍音実験）
+            playLoopCompleteSound(loopLength) {
+                if (!this.enabled) return;
+                
+                // 倍音シリーズ実験: 基音200Hzから倍音を生成
+                const baseFreq = 200;
+                const harmonics = Math.min(loopLength, 16); // 最大16倍音まで
+                
+                for (let i = 1; i <= harmonics; i++) {
+                    const freq = baseFreq * i;
+                    const volume = 0.1 / Math.sqrt(i); // 高次倍音は音量を減衰
+                    setTimeout(() => {
+                        this.playTone(freq, 0.3, volume);
+                    }, (i - 1) * 50); // 50ms間隔で順次再生
+                }
+            }
+            
+            // ブロック出現音（木魚リズム）
+            playBlockAppearSound() {
+                if (!this.enabled) return;
+                // 木魚のような低く短い音
+                this.playTone(150, 0.1, 0.03);
+            }
+            
+            // 緊急モード警告音（継続音）
+            playEmergencySound() {
+                if (!this.enabled) return;
+                this.startContinuousEmergencySound();
+            }
+            
+            startContinuousEmergencySound() {
+                // 既存の緊急音をクリア
+                if (this.emergencyBeepInterval) {
+                    clearInterval(this.emergencyBeepInterval);
+                }
+                
+                // 継続的な警告音
+                this.emergencyBeepInterval = setInterval(() => {
+                    if (!this.enabled) return;
+                    this.playTone(880, 0.2, 0.06);
+                    setTimeout(() => this.playTone(440, 0.2, 0.06), 250);
+                }, 800);
+            }
+            
+            stopEmergencySound() {
+                if (this.emergencyBeepInterval) {
+                    clearInterval(this.emergencyBeepInterval);
+                    this.emergencyBeepInterval = null;
+                }
+            }
+            
+            // ホワイトノイズ生成
+            playWhiteNoise(duration, volume = 0.1) {
+                if (!this.audioContext) {
+                    console.log(`🔊 ホワイトノイズ再生（代替）: ${duration}s`);
+                    return;
+                }
+                
+                try {
+                    const bufferSize = this.audioContext.sampleRate * duration;
+                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    
+                    // ホワイトノイズ生成
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * volume;
+                    }
+                    
+                    const source = this.audioContext.createBufferSource();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    source.buffer = buffer;
+                    source.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    // フェードイン・アウト
+                    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(1, this.audioContext.currentTime + 0.005);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+                    
+                    source.start(this.audioContext.currentTime);
+                    source.stop(this.audioContext.currentTime + duration);
+                } catch (error) {
+                    console.log(`🔊 ホワイトノイズエラー: ${error.message}`);
+                }
+            }
+            
+            // ゲームオーバー爆発音
+            playGameOverSound() {
+                if (!this.enabled) return;
+                
+                // 爆発音：複数の低周波を重ねる + ノイズ
+                const frequencies = [60, 80, 120, 150, 200];
+                frequencies.forEach((freq, i) => {
+                    setTimeout(() => {
+                        this.playTone(freq, 1.0, 0.12);
+                    }, i * 30);
+                });
+                
+                // ノイズ成分を追加
+                setTimeout(() => {
+                    this.playWhiteNoise(0.8, 0.08);
+                }, 100);
+            }
+            
+            // 基本トーン再生
+            playTone(frequency, duration, volume = 0.1) {
+                if (!this.audioContext) {
+                    console.log(`🔊 音再生（代替）: ${frequency}Hz, ${duration}s`);
+                    return;
+                }
+                
+                try {
+                    const oscillator = this.audioContext.createOscillator();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(frequency, this.audioContext.currentTime);
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(volume, this.audioContext.currentTime + 0.01);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+                    
+                    oscillator.start(this.audioContext.currentTime);
+                    oscillator.stop(this.audioContext.currentTime + duration);
+                } catch (error) {
+                    console.log(`🔊 音再生エラー: ${error.message}`);
+                }
+            }
+            
+            // BGM開始/停止
+            toggleMusic() {
+                if (!this.musicEnabled) return;
+                console.log('🎵 BGM切り替え（未実装）');
+                // TODO: 実際のBGMファイル再生
+            }
+            
+            setEnabled(enabled) {
+                this.enabled = enabled;
+                console.log(`🔊 サウンド効果: ${enabled ? 'ON' : 'OFF'}`);
+            }
+            
+            setMusicEnabled(enabled) {
+                this.musicEnabled = enabled;
+                console.log(`🎵 BGM: ${enabled ? 'ON' : 'OFF'}`);
+                this.toggleMusic();
+            }
+        }
+        
+        // グローバルマネージャー
+        const highScoreManager = new HighScoreManager();
+        const soundManager = new SoundManager();
         
         class Game {
             constructor() {
-                this.size = 17;
+                this.size = 11; // デフォルトサイズを11×11に変更
                 this.board = [];
                 this.score = 0;
                 this.running = false;
@@ -541,6 +816,7 @@
                     }
                 }
                 this.render();
+                highScoreManager.updateHighScoreDisplay();
             }
             
             render() {
@@ -581,11 +857,11 @@
                         if (this.board[i][j]) {
                             const pipe = document.createElement('div');
                             
-                            // パス色とパス長クラスを取得
+                            // パス色クラスと明るさクラスを取得
                             const pathColor = this.board[i][j].pathColor !== undefined ? `path-${this.board[i][j].pathColor}` : '';
                             const lengthClass = this.board[i][j].lengthClass || '';
                             
-                            pipe.className = `pipe pipe-${this.board[i][j].type} rot-${this.board[i][j].rotation} ${pathColor} ${lengthClass}`;
+                            pipe.className = `pipe pipe-${this.board[i][j].type} rot-${this.board[i][j].rotation} ${pathColor} ${lengthClass}`.trim();
                             cell.appendChild(pipe);
                         }
                         
@@ -651,6 +927,9 @@
                     this.board[row][col].rotation = targetRotation;
                 }
                 
+                // サウンド再生
+                soundManager.playRotateSound();
+                
                 this.updatePathColors();
                 this.render();
                 this.checkLoops();
@@ -664,6 +943,9 @@
                 const maxRot = pipe.type === 'I' ? 2 : 4;
                 pipe.rotation = (pipe.rotation + 1) % maxRot;
                 
+                // サウンド再生
+                soundManager.playRotateSound();
+                
                 this.updatePathColors();
                 this.render();
                 this.checkLoops();
@@ -672,7 +954,6 @@
             addBlock() {
                 if (this.processing) return;
                 
-                const center = Math.floor(this.size / 2);
                 const spiral = this.generateSpiral();
                 
                 for (const [row, col] of spiral) {
@@ -688,8 +969,15 @@
                             lengthClass: ''
                         };
                         
+                        // サウンド再生
+                        soundManager.playBlockAppearSound();
+                        
                         this.updatePathColors();
                         this.render();
+                        
+                        // 🔧 バグ修正: ブロック出現時にループ検出を実行
+                        this.checkLoops();
+                        
                         return true;
                     }
                 }
@@ -729,70 +1017,64 @@
             }
             
             updatePathColors() {
-                // 全てのパス色をリセット
-                for (let i = 0; i < this.size; i++) {
-                    for (let j = 0; j < this.size; j++) {
-                        if (this.board[i][j]) {
-                            this.board[i][j].pathColor = undefined;
-                            this.board[i][j].lengthClass = '';
+                try {
+                    // 全てのパス色をリセット
+                    for (let i = 0; i < this.size; i++) {
+                        for (let j = 0; j < this.size; j++) {
+                            if (this.board[i][j]) {
+                                this.board[i][j].pathColor = undefined;
+                                this.board[i][j].lengthClass = '';
+                            }
                         }
                     }
-                }
-                
-                const visited = new Set();
-                
-                for (let i = 0; i < this.size; i++) {
-                    for (let j = 0; j < this.size; j++) {
-                        if (this.board[i][j] && !visited.has(`${i},${j}`)) {
-                            const path = this.tracePath(i, j, visited);
-                            
-                            if (path.length > 0) {
-                                // 純粋パス長で色ID決定
-                                const pathColor = this.getPathColorId(path);
-                                const lengthClass = this.getLengthClass(path.length);
+                    
+                    const globalVisited = new Set();
+                    
+                    for (let i = 0; i < this.size; i++) {
+                        for (let j = 0; j < this.size; j++) {
+                            if (this.board[i][j] && !globalVisited.has(`${i},${j}`)) {
+                                const path = this.tracePath(i, j, globalVisited);
                                 
-                                // パスの全セルに色・濃淡を割り当て
-                                for (const [row, col] of path) {
-                                    if (this.board[row][col]) {
-                                        this.board[row][col].pathColor = pathColor;
-                                        this.board[row][col].lengthClass = lengthClass;
+                                if (path && path.length > 0) {
+                                    // 10段階色分け（10以上は赤に戻る）
+                                    const pathColor = this.getPathColorId(path.length);
+                                    const lengthClass = this.getLengthClass(path.length);
+                                    
+                                    // パスの全セルに色・明るさクラスを割り当て
+                                    for (const [row, col] of path) {
+                                        if (this.board[row] && this.board[row][col]) {
+                                            this.board[row][col].pathColor = pathColor;
+                                            this.board[row][col].lengthClass = lengthClass;
+                                        }
                                     }
                                 }
                             }
                         }
                     }
+                } catch (error) {
+                    console.error('updatePathColors error:', error);
                 }
             }
             
-            getPathColorId(path) {
-                // 純粋パス長ベース色分け（案1）
-                return Math.floor(path.length / 2) % 6;
+            getPathColorId(pathLength) {
+                // 10段階で循環: 1個=0、2個=1、...、10個=9、11個=0、12個=1...
+                return (pathLength - 1) % 10;
             }
             
             getLengthClass(pathLength) {
-                if (pathLength >= 6) {
-                    return 'length-long';
-                } else if (pathLength >= 3) {
-                    return 'length-medium';
-                } else {
-                    return 'length-short';
-                }
+                // 10個以上は明るくして区別
+                return pathLength >= 10 ? 'length-10plus' : '';
             }
             
             tracePath(startRow, startCol, globalVisited) {
                 const path = [];
                 const pathSet = new Set();
                 
-                const dfs = (row, col, prevRow, prevCol) => {
+                const dfs = (row, col) => {
                     const key = `${row},${col}`;
                     
-                    if (pathSet.has(key)) {
-                        return;
-                    }
-                    
-                    if (globalVisited.has(key) || !this.board[row][col]) {
-                        return;
-                    }
+                    if (pathSet.has(key) || globalVisited.has(key)) return;
+                    if (!this.board[row] || !this.board[row][col]) return;
                     
                     path.push([row, col]);
                     pathSet.add(key);
@@ -801,16 +1083,15 @@
                     const connections = this.getConnections(row, col);
                     
                     for (const [nextRow, nextCol] of connections) {
-                        if (nextRow === prevRow && nextCol === prevCol) continue;
-                        if (nextRow < 0 || nextRow >= this.size || nextCol < 0 || nextCol >= this.size) continue;
-                        
-                        if (this.isConnected(row, col, nextRow, nextCol)) {
-                            dfs(nextRow, nextCol, row, col);
+                        if (nextRow >= 0 && nextRow < this.size && nextCol >= 0 && nextCol < this.size) {
+                            if (this.isConnected(row, col, nextRow, nextCol)) {
+                                dfs(nextRow, nextCol);
+                            }
                         }
                     }
                 };
                 
-                dfs(startRow, startCol, -1, -1);
+                dfs(startRow, startCol);
                 return path;
             }
             
@@ -899,7 +1180,7 @@
             }
             
             isConnected(row1, col1, row2, col2) {
-                if (!this.board[row2][col2]) return false;
+                if (!this.board[row2] || !this.board[row2][col2]) return false;
                 
                 const connections1 = this.getConnections(row1, col1);
                 const connections2 = this.getConnections(row2, col2);
@@ -913,18 +1194,31 @@
             removeLoop(loop) {
                 this.processing = true;
                 
-                const score = loop.length * loop.length * 5;
+                // 🔧 スコア計算変更: ループ長² (×5削除)
+                const score = loop.length * loop.length;
                 this.score += score;
+                
+                // ハイスコア更新チェック
+                const isNewRecord = highScoreManager.setHighScore(this.score);
+                if (isNewRecord) {
+                    highScoreManager.updateHighScoreDisplay();
+                }
+                
+                // サウンド再生
+                soundManager.playLoopCompleteSound(loop.length);
                 
                 this.highlightLoop(loop);
                 this.showScorePopup(loop, score);
                 
+                // 順次消滅アニメーション
                 setTimeout(() => {
-                    this.animateBlockDisappear(loop);
+                    this.animateSequentialDisappear(loop);
                     
                     setTimeout(() => {
                         for (const [row, col] of loop) {
-                            this.board[row][col] = null;
+                            if (this.board[row]) {
+                                this.board[row][col] = null;
+                            }
                         }
                         this.updatePathColors();
                         this.render();
@@ -933,6 +1227,9 @@
                         if (this.emergencyMode) {
                             this.emergencyTimer = Math.min(this.emergencyTimer + 5, 20);
                             this.emergencyMode = false;
+                            
+                            // 緊急モード解除時に警告音停止
+                            soundManager.stopEmergencySound();
                             
                             if (this.timerInterval) {
                                 clearInterval(this.timerInterval);
@@ -943,7 +1240,7 @@
                                 this.addBlock();
                             }, Math.floor(2000 / this.speedMultiplier));
                         }
-                    }, 800);
+                    }, loop.length * 100 + 800); // 順次アニメーション時間を考慮
                 }, 600);
             }
             
@@ -960,18 +1257,23 @@
                 }
             }
             
-            animateBlockDisappear(loop) {
+            // 順次消滅アニメーション
+            animateSequentialDisappear(loop) {
                 const board = document.getElementById('gameBoard');
                 if (!board) return;
                 
-                for (const [row, col] of loop) {
-                    const cellIndex = row * this.size + col;
-                    const cell = board.children[cellIndex];
-                    if (cell) {
-                        cell.classList.remove('loop-highlight');
-                        cell.classList.add('block-disappear');
-                    }
-                }
+                loop.forEach((position, index) => {
+                    const [row, col] = position;
+                    
+                    setTimeout(() => {
+                        const cellIndex = row * this.size + col;
+                        const cell = board.children[cellIndex];
+                        if (cell) {
+                            cell.classList.remove('loop-highlight');
+                            cell.classList.add('block-disappear');
+                        }
+                    }, index * 150); // 0.15秒ずつ時差で消滅（ゆっくり）
+                });
             }
             
             showScorePopup(loop, score) {
@@ -1014,6 +1316,9 @@
                 this.emergencyMode = true;
                 this.emergencyTimer = 20;
                 
+                // 緊急モードサウンド（継続音）
+                soundManager.playEmergencySound();
+                
                 if (this.timerInterval) {
                     clearInterval(this.timerInterval);
                 }
@@ -1036,6 +1341,7 @@
                 this.paused = false;
                 this.emergencyMode = false;
                 this.emergencyTimer = 20;
+                this.speedMultiplier = tempSettings.gameSpeed;
                 
                 this.init();
                 
@@ -1078,6 +1384,12 @@
                     clearInterval(this.timerInterval);
                 }
                 
+                // 緊急モード警告音停止
+                soundManager.stopEmergencySound();
+                
+                // ゲームオーバー爆発音
+                soundManager.playGameOverSound();
+                
                 const finalScore = document.getElementById('finalScore');
                 if (finalScore) finalScore.textContent = this.score;
                 
@@ -1106,21 +1418,26 @@
             }
         }
         
-        function changeSpeed() {
-            const speedSelect = document.getElementById('speedSelect');
-            const multiplier = parseFloat(speedSelect.value);
-            if (game) {
-                game.setSpeed(multiplier);
+        function resetHighScore() {
+            if (confirm('ハイスコアをリセットしますか？')) {
+                highScoreManager.resetHighScore();
+                alert('ハイスコアをリセットしました');
             }
         }
         
         function openSettings() {
-            tempSettings.fieldSize = game ? game.size : 17;
+            tempSettings.fieldSize = game ? game.size : 11;
+            tempSettings.gameSpeed = game ? game.speedMultiplier : 1;
+            tempSettings.soundEffects = soundManager.enabled;
+            tempSettings.backgroundMusic = soundManager.musicEnabled;
             
             const modal = document.getElementById('settingsModal');
             modal.style.display = 'flex';
             
             updateFieldSizeSelection();
+            updateSpeedSelection();
+            updateAudioSettings();
+            highScoreManager.updateHighScoreDisplay();
         }
         
         function closeSettings() {
@@ -1129,11 +1446,23 @@
         }
         
         function applySettings() {
+            // フィールドサイズ適用
             if (game) {
                 game.size = tempSettings.fieldSize;
+                game.score = 0; // スコアもリセット
                 game.init();
                 game.render();
             }
+            
+            // ゲーム速度適用
+            if (game) {
+                game.setSpeed(tempSettings.gameSpeed);
+            }
+            
+            // オーディオ設定適用
+            soundManager.setEnabled(tempSettings.soundEffects);
+            soundManager.setMusicEnabled(tempSettings.backgroundMusic);
+            
             closeSettings();
         }
         
@@ -1147,7 +1476,24 @@
             });
         }
         
+        function updateSpeedSelection() {
+            const options = document.querySelectorAll('.speed-option');
+            options.forEach(option => {
+                option.classList.remove('selected');
+                if (parseFloat(option.dataset.speed) === tempSettings.gameSpeed) {
+                    option.classList.add('selected');
+                }
+            });
+        }
+        
+        function updateAudioSettings() {
+            document.getElementById('soundEffects').checked = tempSettings.soundEffects;
+            document.getElementById('backgroundMusic').checked = tempSettings.backgroundMusic;
+        }
+        
+        // イベントリスナー設定
         document.addEventListener('DOMContentLoaded', () => {
+            // フィールドサイズ選択
             const sizeOptions = document.querySelectorAll('.size-option');
             sizeOptions.forEach(option => {
                 option.addEventListener('click', () => {
@@ -1155,6 +1501,25 @@
                     tempSettings.fieldSize = size;
                     updateFieldSizeSelection();
                 });
+            });
+            
+            // ゲーム速度選択
+            const speedOptions = document.querySelectorAll('.speed-option');
+            speedOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    const speed = parseFloat(option.dataset.speed);
+                    tempSettings.gameSpeed = speed;
+                    updateSpeedSelection();
+                });
+            });
+            
+            // オーディオ設定
+            document.getElementById('soundEffects').addEventListener('change', (e) => {
+                tempSettings.soundEffects = e.target.checked;
+            });
+            
+            document.getElementById('backgroundMusic').addEventListener('change', (e) => {
+                tempSettings.backgroundMusic = e.target.checked;
             });
         });
         
