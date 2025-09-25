@@ -1,0 +1,479 @@
+/* 渦巻きパイプパズル v008 - 外部CSSファイル（最小変更版） */
+/* v007からCSS部分をそのまま抽出 */
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    color: white;
+    text-align: center;
+    overflow: hidden;
+}
+
+.game-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.top-bar {
+    position: absolute;
+    top: 5px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 16px;
+    font-weight: bold;
+    height: 25px;
+    z-index: 10;
+}
+
+.controls-container {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    z-index: 10;
+}
+
+.score-display {
+    font-size: 18px;
+}
+
+.high-score {
+    font-size: 14px;
+    color: #FFD700;
+    margin-left: 15px;
+}
+
+.game-board-container {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 35px 5px 15px 5px;
+}
+
+.game-board {
+    background: #222;
+    border: 1px solid #444;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.cell {
+    display: inline-block;
+    background: #111;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.cell:hover {
+    background: #333;
+}
+
+/* 消滅中ブロックのカーソル変更 */
+.cell.disappearing {
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.pipe {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    background: linear-gradient(145deg, #555, #333);
+    border-radius: 3px;
+    transition: filter 0.8s ease-in-out, box-shadow 0.8s ease-in-out;
+}
+
+.pipe::before,
+.pipe::after {
+    content: '';
+    position: absolute;
+    background: linear-gradient(145deg, #6CAF70, #4A7C59);
+    border-radius: 3px;
+    transition: background 0.8s ease-in-out;
+}
+
+/* 10段階色分け（滑らかな変化、10以上は明るさで区別） */
+.pipe.path-0::before, .pipe.path-0::after { 
+    background: linear-gradient(145deg, #FF0000, #E60000); /* 赤 - 1個 */
+}
+.pipe.path-1::before, .pipe.path-1::after { 
+    background: linear-gradient(145deg, #FF4000, #E63A00); /* 赤オレンジ - 2個 */
+}
+.pipe.path-2::before, .pipe.path-2::after { 
+    background: linear-gradient(145deg, #FF8000, #E67300); /* オレンジ - 3個 */
+}
+.pipe.path-3::before, .pipe.path-3::after { 
+    background: linear-gradient(145deg, #FFBF00, #E6AC00); /* 黄オレンジ - 4個 */
+}
+.pipe.path-4::before, .pipe.path-4::after { 
+    background: linear-gradient(145deg, #FFFF00, #E6E600); /* 黄 - 5個 */
+}
+.pipe.path-5::before, .pipe.path-5::after { 
+    background: linear-gradient(145deg, #80FF00, #73E600); /* 黄緑 - 6個 */
+}
+.pipe.path-6::before, .pipe.path-6::after { 
+    background: linear-gradient(145deg, #00FF00, #00E600); /* 緑 - 7個 */
+}
+.pipe.path-7::before, .pipe.path-7::after { 
+    background: linear-gradient(145deg, #00FF80, #00E673); /* 緑青 - 8個 */
+}
+.pipe.path-8::before, .pipe.path-8::after { 
+    background: linear-gradient(145deg, #0080FF, #0073E6); /* 青 - 9個 */
+}
+.pipe.path-9::before, .pipe.path-9::after { 
+    background: linear-gradient(145deg, #8000FF, #7300E6); /* 紫 - 10個 */
+}
+
+/* 10個以上の明るさ区別 */
+.pipe.length-10plus {
+    filter: brightness(1.4) saturate(1.4);
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+}
+
+/* I字パイプ */
+.pipe-I.rot-0::before {
+    left: 35%;
+    top: 0%;
+    width: 30%;
+    height: 100%;
+}
+
+.pipe-I.rot-1::before {
+    left: 0%;
+    top: 35%;
+    width: 100%;
+    height: 30%;
+}
+
+/* L字パイプ */
+.pipe-L.rot-0::before {
+    left: 35%;
+    top: 35%;
+    width: 65%;
+    height: 30%;
+}
+.pipe-L.rot-0::after {
+    left: 35%;
+    top: 35%;
+    width: 30%;
+    height: 65%;
+}
+
+.pipe-L.rot-1::before {
+    left: 0%;
+    top: 35%;
+    width: 65%;
+    height: 30%;
+}
+.pipe-L.rot-1::after {
+    left: 35%;
+    top: 35%;
+    width: 30%;
+    height: 65%;
+}
+
+.pipe-L.rot-2::before {
+    left: 0%;
+    top: 35%;
+    width: 65%;
+    height: 30%;
+}
+.pipe-L.rot-2::after {
+    left: 35%;
+    top: 0%;
+    width: 30%;
+    height: 65%;
+}
+
+.pipe-L.rot-3::before {
+    left: 35%;
+    top: 35%;
+    width: 65%;
+    height: 30%;
+}
+.pipe-L.rot-3::after {
+    left: 35%;
+    top: 0%;
+    width: 30%;
+    height: 65%;
+}
+
+/* ループ検出時のアニメーション */
+.loop-highlight {
+    animation: loopPulse 0.6s ease-in-out;
+    background: linear-gradient(145deg, #FFD700, #FF8C00) !important;
+    transform: scale(1.1);
+    z-index: 5;
+    position: relative;
+}
+
+@keyframes loopPulse {
+    0%, 100% { 
+        transform: scale(1.1); 
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+    }
+    50% { 
+        transform: scale(1.2); 
+        box-shadow: 0 0 30px rgba(255, 215, 0, 1);
+    }
+}
+
+/* ブロック消滅アニメーション - ゆっくり消滅 */
+.block-disappear {
+    animation: disappear 1.2s ease-in-out forwards;
+}
+
+@keyframes disappear {
+    0% { 
+        transform: scale(1.1); 
+        opacity: 1;
+    }
+    20% { 
+        transform: scale(1.3) rotate(5deg); 
+        opacity: 0.9;
+    }
+    60% { 
+        transform: scale(1.1) rotate(15deg); 
+        opacity: 0.5;
+    }
+    100% { 
+        transform: scale(0) rotate(90deg); 
+        opacity: 0;
+    }
+}
+
+/* スコアポップアップ */
+.score-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FFD700;
+    font-weight: bold;
+    font-size: 20px;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    animation: scorePopup 1.5s ease-out forwards;
+    pointer-events: none;
+    z-index: 100;
+}
+
+@keyframes scorePopup {
+    0% { 
+        transform: translate(-50%, -50%) scale(0.5); 
+        opacity: 1;
+    }
+    20% { 
+        transform: translate(-50%, -50%) scale(1.2); 
+        opacity: 1;
+    }
+    100% { 
+        transform: translate(-50%, -100%) scale(1); 
+        opacity: 0;
+    }
+}
+
+button {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+button:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+select {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+}
+
+.game-over {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.game-over-content {
+    background: #333;
+    padding: 40px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+/* 設定モーダル */
+.settings-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.settings-content {
+    background: #333;
+    padding: 30px;
+    border-radius: 12px;
+    min-width: 300px;
+    max-width: 400px;
+    color: white;
+}
+
+.settings-title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-align: center;
+    border-bottom: 1px solid #555;
+    padding-bottom: 10px;
+}
+
+.settings-section {
+    margin-bottom: 20px;
+}
+
+.settings-section h4 {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    color: #ccc;
+}
+
+.field-size-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.size-option {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.size-option:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.size-option.selected {
+    background: #4CAF50;
+    border-color: #45a049;
+}
+
+.speed-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.speed-option {
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: white;
+    padding: 8px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.speed-option:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+.speed-option.selected {
+    background: #4CAF50;
+    border-color: #45a049;
+}
+
+.settings-option {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 10px 0;
+}
+
+.settings-option label {
+    font-size: 14px;
+}
+
+.settings-option input[type="checkbox"] {
+    transform: scale(1.2);
+}
+
+.settings-buttons {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 25px;
+}
+
+.settings-btn {
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    min-width: 70px;
+}
+
+.settings-btn:hover {
+    background: rgba(255,255,255,0.3);
+}
+
+.settings-btn.primary {
+    background: #4CAF50;
+    border-color: #45a049;
+}
+
+.settings-btn.primary:hover {
+    background: #45a049;
+}
+
+.reset-btn {
+    background: #FF6B6B;
+    border-color: #FF5252;
+}
+
+.reset-btn:hover {
+    background: #FF5252;
+}
