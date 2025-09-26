@@ -1,0 +1,887 @@
+<!DOCTYPE html>
+<!-- 渦巻きパイプパズル v008 - 外部ファイル参照版（最小変更） -->
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>渦巻きパイプパズル</title>
+    <link rel="stylesheet" href="https://ruiot.github.io/loop/base-styles.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="top-bar">
+            <div class="score-display">
+                スコア: <span id="score">0</span>
+                <span class="high-score">最高: <span id="highScore">0</span></span>
+            </div>
+
+            <div class="controls-container">
+                <button onclick="openSettings()" id="settingsBtn">⚙️</button>
+                <button onclick="togglePause()" id="pauseBtn">⏸️</button>
+                <button onclick="newGame()">🔄</button>
+            </div>
+        </div>
+        
+        <div class="game-board-container">
+            <div class="game-board" id="gameBoard"></div>
+        </div>
+    </div>
+
+    <div class="game-over" id="gameOver">
+        <div class="game-over-content">
+            <h2>ゲームオーバー！</h2>
+            <p>スコア: <span id="finalScore">0</span></p>
+            <button onclick="newGame()">もう一度</button>
+        </div>
+    </div>
+
+    <div class="settings-modal" id="settingsModal">
+        <div class="settings-content">
+            <div class="settings-title">設定</div>
+            
+            <div class="settings-section">
+                <h4>フィールドサイズ</h4>
+                <div class="field-size-grid">
+                    <div class="size-option" data-size="5">5×5</div>
+                    <div class="size-option" data-size="7">7×7</div>
+                    <div class="size-option" data-size="9">9×9</div>
+                    <div class="size-option selected" data-size="11">11×11</div>
+                    <div class="size-option" data-size="13">13×13</div>
+                    <div class="size-option" data-size="15">15×15</div>
+                    <div class="size-option" data-size="17">17×17</div>
+                    <div class="size-option" data-size="19">19×19</div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>ゲーム速度</h4>
+                <div class="speed-grid">
+                    <div class="speed-option" data-speed="0.5">0.5x</div>
+                    <div class="speed-option selected" data-speed="1">1x</div>
+                    <div class="speed-option" data-speed="1.5">1.5x</div>
+                    <div class="speed-option" data-speed="2">2x</div>
+                    <div class="speed-option" data-speed="4">4x</div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>オーディオ設定</h4>
+                <div class="settings-option">
+                    <label>サウンド効果</label>
+                    <input type="checkbox" id="soundEffects" checked>
+                </div>
+                <div class="settings-option">
+                    <label>BGM</label>
+                    <input type="checkbox" id="backgroundMusic">
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h4>記録</h4>
+                <div class="settings-option">
+                    <label>ハイスコア: <span id="settingsHighScore">0</span></label>
+                    <button class="settings-btn reset-btn" onclick="resetHighScore()">リセット</button>
+                </div>
+            </div>
+            
+            <div class="settings-buttons">
+                <button class="settings-btn" onclick="closeSettings()">キャンセル</button>
+                <button class="settings-btn primary" onclick="applySettings()">適用</button>
+            </div>
+        </div>
+    </div>
+
+<script src="https://ruiot.github.io/loop/sound-manager.js"></script>
+<script>
+    let game = null;
+    let tempSettings = {
+        fieldSize: 11,
+        gameSpeed: 1,
+        soundEffects: true,
+        backgroundMusic: false
+    };
+    
+    // ハイスコア管理
+    class HighScoreManager {
+        constructor() {
+            this.storageKey = 'pipeHighScore';
+        }
+        
+        getHighScore() {
+            return parseInt(localStorage.getItem(this.storageKey) || '0');
+        }
+        
+        setHighScore(score) {
+            const currentHigh = this.getHighScore();
+            if (score > currentHigh) {
+                localStorage.setItem(this.storageKey, score.toString());
+                return true; // 新記録
+            }
+            return false;
+        }
+        
+        resetHighScore() {
+            localStorage.removeItem(this.storageKey);
+            this.updateHighScoreDisplay();
+        }
+        
+        updateHighScoreDisplay() {
+            const highScore = this.getHighScore();
+            const highScoreEl = document.getElementById('highScore');
+            const settingsHighScoreEl = document.getElementById('settingsHighScore');
+            if (highScoreEl) highScoreEl.textContent = highScore;
+            if (settingsHighScoreEl) settingsHighScoreEl.textContent = highScore;
+        }
+    }
+    
+    // グローバルマネージャー
+    const highScoreManager = new HighScoreManager();
+    
+    class Game {
+        constructor() {
+            this.size = 11; // デフォルトサイズ11×11
+            this.board = [];
+            this.score = 0;
+            this.running = false;
+            this.paused = false;
+            
+            // ✅ v007: 消滅中操作改善システム
+            this.canGenerateBlocks = true; // ブロック生成可能フラグ
+            this.disappearingBlocks = new Set(); // 消滅中ブロックの座標管理
+            
+            this.timerInterval = null;
+            this.emergencyMode = false;
+            this.emergencyTimer = 20;
+            this.speedMultiplier = 1;
+            
+            // フリック操作用
+            this.touchStartX = 0;
+            this.touchStartY = 0;
+            
+            this.init();
+        }
+        
+        init() {
+            this.board = [];
+            for (let i = 0; i < this.size; i++) {
+                this.board[i] = [];
+                for (let j = 0; j < this.size; j++) {
+                    this.board[i][j] = null;
+                }
+            }
+            this.render();
+            highScoreManager.updateHighScoreDisplay();
+        }
+        
+        render() {
+            const board = document.getElementById('gameBoard');
+            if (!board) return;
+            
+            board.innerHTML = '';
+            board.style.display = 'grid';
+            board.style.gridTemplateColumns = `repeat(${this.size}, 1fr)`;
+            board.style.gap = '0';
+            
+            const availableHeight = window.innerHeight - 70;
+            const availableWidth = window.innerWidth - 20;
+            const maxSize = Math.min(availableWidth, availableHeight);
+            
+            const cellSize = Math.floor(maxSize / this.size);
+            const boardSize = cellSize * this.size;
+            
+            board.style.width = `${boardSize}px`;
+            board.style.height = `${boardSize}px`;
+            board.style.position = 'relative';
+            
+            for (let i = 0; i < this.size; i++) {
+                for (let j = 0; j < this.size; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.style.width = `${cellSize}px`;
+                    cell.style.height = `${cellSize}px`;
+                    cell.style.boxSizing = 'border-box';
+                    
+                    // ✅ v007: 消滅中ブロック視覚表示
+                    const cellKey = `${i},${j}`;
+                    if (this.disappearingBlocks.has(cellKey)) {
+                        cell.classList.add('disappearing');
+                    }
+                    
+                    cell.onclick = () => this.clickCell(i, j);
+                    
+                    cell.classList.remove('loop-highlight', 'block-disappear');
+                    
+                    cell.addEventListener('touchstart', (e) => this.handleTouchStart(e, i, j));
+                    cell.addEventListener('touchend', (e) => this.handleTouchEnd(e, i, j));
+                    cell.addEventListener('touchmove', (e) => e.preventDefault());
+                    
+                    if (this.board[i][j]) {
+                        const pipe = document.createElement('div');
+                        
+                        // パス色クラスと明るさクラスを取得
+                        const pathColor = this.board[i][j].pathColor !== undefined ? `path-${this.board[i][j].pathColor}` : '';
+                        const lengthClass = this.board[i][j].lengthClass || '';
+                        
+                        pipe.className = `pipe pipe-${this.board[i][j].type} rot-${this.board[i][j].rotation} ${pathColor} ${lengthClass}`.trim();
+                        cell.appendChild(pipe);
+                    }
+                    
+                    board.appendChild(cell);
+                }
+            }
+            
+            const scoreEl = document.getElementById('score');
+            if (scoreEl) scoreEl.textContent = this.score;
+        }
+        
+        handleTouchStart(e, row, col) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            this.touchStartX = touch.clientX;
+            this.touchStartY = touch.clientY;
+        }
+        
+        handleTouchEnd(e, row, col) {
+            e.preventDefault();
+            if (!this.running || this.paused) return;
+            if (!this.board[row][col]) return;
+            
+            // ✅ v007: 消滅中ブロック個別チェック
+            const cellKey = `${row},${col}`;
+            if (this.disappearingBlocks.has(cellKey)) return;
+            
+            const touch = e.changedTouches[0];
+            const deltaX = touch.clientX - this.touchStartX;
+            const deltaY = touch.clientY - this.touchStartY;
+            const threshold = 30;
+            
+            if (Math.abs(deltaX) > threshold || Math.abs(deltaY) > threshold) {
+                const angle = Math.atan2(deltaY, deltaX) * 180 / Math.PI;
+                let direction;
+                
+                if (angle >= -45 && angle < 45) direction = 'right';
+                else if (angle >= 45 && angle < 135) direction = 'down';
+                else if (angle >= -135 && angle < -45) direction = 'up';
+                else direction = 'left';
+                
+                this.setDirection(row, col, direction);
+            } else {
+                this.clickCell(row, col);
+            }
+        }
+        
+        clickCell(row, col) {
+            if (!this.running || this.paused) return;
+            if (!this.board[row][col]) return;
+            
+            // ✅ v007: 消滅中ブロック個別チェック
+            const cellKey = `${row},${col}`;
+            if (this.disappearingBlocks.has(cellKey)) return;
+            
+            this.rotateBlock(row, col);
+            this.updatePathColors();
+            this.render();
+            this.checkLoops();
+        }
+        
+        setDirection(row, col, direction) {
+            if (!this.running || this.paused) return;
+            if (!this.board[row][col]) return;
+            
+            // ✅ v007: 消滅中ブロック個別チェック
+            const cellKey = `${row},${col}`;
+            if (this.disappearingBlocks.has(cellKey)) return;
+            
+            const pipe = this.board[row][col];
+            let targetRotation = 0;
+            
+            if (pipe.type === 'I') {
+                targetRotation = (direction === 'up' || direction === 'down') ? 0 : 1;
+            } else if (pipe.type === 'L') {
+                const directionMap = { 'right': 0, 'down': 1, 'left': 2, 'up': 3 };
+                targetRotation = directionMap[direction] || 0;
+            }
+            
+            if (pipe.rotation !== targetRotation) {
+                pipe.rotation = targetRotation;
+                soundManager.playRotateSound();
+                this.updatePathColors();
+                this.render();
+                this.checkLoops();
+            }
+        }
+        
+        rotateBlock(row, col) {
+            const pipe = this.board[row][col];
+            if (!pipe) return;
+            
+            const maxRotation = pipe.type === 'I' ? 2 : 4;
+            pipe.rotation = (pipe.rotation + 1) % maxRotation;
+            
+            soundManager.playRotateSound();
+        }
+        
+        updatePathColors() {
+            const visited = new Set();
+            
+            for (let i = 0; i < this.size; i++) {
+                for (let j = 0; j < this.size; j++) {
+                    if (this.board[i][j]) {
+                        this.board[i][j].pathColor = undefined;
+                        this.board[i][j].lengthClass = '';
+                    }
+                }
+            }
+            
+            for (let i = 0; i < this.size; i++) {
+                for (let j = 0; j < this.size; j++) {
+                    if (this.board[i][j] && !visited.has(`${i},${j}`)) {
+                        const path = this.tracePath(i, j, visited);
+                        const length = path.length;
+                        
+                        if (length > 1) {
+                            const colorId = Math.min(length - 1, 9);
+                            const lengthClass = length >= 10 ? 'length-10plus' : '';
+                            
+                            for (const [row, col] of path) {
+                                if (this.board[row] && this.board[row][col]) {
+                                    this.board[row][col].pathColor = colorId;
+                                    this.board[row][col].lengthClass = lengthClass;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        tracePath(startRow, startCol, globalVisited) {
+            const path = [];
+            const pathSet = new Set();
+            
+            const dfs = (row, col) => {
+                const key = `${row},${col}`;
+                
+                if (pathSet.has(key) || globalVisited.has(key)) return;
+                if (!this.board[row] || !this.board[row][col]) return;
+                
+                path.push([row, col]);
+                pathSet.add(key);
+                globalVisited.add(key);
+                
+                const connections = this.getConnections(row, col);
+                
+                for (const [nextRow, nextCol] of connections) {
+                    if (nextRow >= 0 && nextRow < this.size && nextCol >= 0 && nextCol < this.size) {
+                        if (this.isConnected(row, col, nextRow, nextCol)) {
+                            dfs(nextRow, nextCol);
+                        }
+                    }
+                }
+            };
+            
+            dfs(startRow, startCol);
+            return path;
+        }
+        
+        checkLoops() {
+            const visited = new Set();
+            
+            for (let i = 0; i < this.size; i++) {
+                for (let j = 0; j < this.size; j++) {
+                    if (this.board[i][j] && !visited.has(`${i},${j}`)) {
+                        const loop = this.findLoop(i, j, visited);
+                        if (loop.length > 2) {
+                            this.removeLoop(loop);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        
+        findLoop(startRow, startCol, globalVisited) {
+            const path = [];
+            const pathSet = new Set();
+            
+            const dfs = (row, col, prevRow, prevCol) => {
+                const key = `${row},${col}`;
+                
+                if (pathSet.has(key)) {
+                    const loopStart = path.findIndex(([r, c]) => r === row && c === col);
+                    return path.slice(loopStart);
+                }
+                
+                if (globalVisited.has(key) || !this.board[row][col]) {
+                    return [];
+                }
+                
+                path.push([row, col]);
+                pathSet.add(key);
+                
+                const connections = this.getConnections(row, col);
+                
+                for (const [nextRow, nextCol] of connections) {
+                    if (nextRow === prevRow && nextCol === prevCol) continue;
+                    if (nextRow < 0 || nextRow >= this.size || nextCol < 0 || nextCol >= this.size) continue;
+                    
+                    if (this.isConnected(row, col, nextRow, nextCol)) {
+                        const loop = dfs(nextRow, nextCol, row, col);
+                        if (loop.length > 0) {
+                            return loop;
+                        }
+                    }
+                }
+                
+                path.pop();
+                pathSet.delete(key);
+                globalVisited.add(key);
+                return [];
+            };
+            
+            return dfs(startRow, startCol, -1, -1);
+        }
+        
+        getConnections(row, col) {
+            const pipe = this.board[row][col];
+            if (!pipe) return [];
+            
+            const { type, rotation } = pipe;
+            const connections = [];
+            
+            if (type === 'I') {
+                if (rotation === 0) {
+                    connections.push([row - 1, col], [row + 1, col]);
+                } else {
+                    connections.push([row, col - 1], [row, col + 1]);
+                }
+            } else if (type === 'L') {
+                const lConnections = [
+                    [[row, col + 1], [row + 1, col]],
+                    [[row, col - 1], [row + 1, col]],
+                    [[row, col - 1], [row - 1, col]],
+                    [[row, col + 1], [row - 1, col]]
+                ];
+                connections.push(...lConnections[rotation]);
+            }
+            
+            return connections;
+        }
+        
+        isConnected(row1, col1, row2, col2) {
+            if (!this.board[row2] || !this.board[row2][col2]) return false;
+            
+            const connections1 = this.getConnections(row1, col1);
+            const connections2 = this.getConnections(row2, col2);
+            
+            const hasConnection1 = connections1.some(([r, c]) => r === row2 && c === col2);
+            const hasConnection2 = connections2.some(([r, c]) => r === row1 && c === col1);
+            
+            return hasConnection1 && hasConnection2;
+        }
+        
+        removeLoop(loop) {
+            // ✅ v007: ブロック生成を一時停止（消滅アニメーション中）
+            this.canGenerateBlocks = false;
+            
+            // ✅ v007: 消滅対象ブロックを登録
+            loop.forEach(([row, col]) => {
+                this.disappearingBlocks.add(`${row},${col}`);
+            });
+            
+            const score = loop.length * loop.length;
+            this.score += score;
+            
+            // ハイスコア更新チェック
+            const isNewRecord = highScoreManager.setHighScore(this.score);
+            if (isNewRecord) {
+                highScoreManager.updateHighScoreDisplay();
+            }
+            
+            // サウンド再生
+            soundManager.playLoopCompleteSound(loop.length);
+            
+            this.highlightLoop(loop);
+            this.showScorePopup(loop, score);
+            
+            // 順次消滅アニメーション（150ms間隔で音響と同期）
+            setTimeout(() => {
+                this.animateSequentialDisappear(loop);
+                
+                const totalAnimationTime = loop.length * 150 + 1200; // アニメーション時間計算
+                setTimeout(() => {
+                    // ✅ v007: 消滅完了処理
+                    loop.forEach(([row, col]) => {
+                        if (this.board[row]) {
+                            this.board[row][col] = null;
+                        }
+                        // 消滅中フラグをクリア
+                        this.disappearingBlocks.delete(`${row},${col}`);
+                    });
+                    
+                    this.updatePathColors();
+                    this.render();
+                    
+                    // ✅ v007: ブロック生成再開
+                    this.canGenerateBlocks = true;
+                    
+                    if (this.emergencyMode) {
+                        this.emergencyTimer = Math.min(this.emergencyTimer + 5, 20);
+                        this.emergencyMode = false;
+                        
+                        // 緊急モード解除時に警告音停止
+                        soundManager.stopEmergencySound();
+                        
+                        if (this.timerInterval) {
+                            clearInterval(this.timerInterval);
+                        }
+                        
+                        this.timerInterval = setInterval(() => {
+                            if (!this.running || this.paused || this.emergencyMode) return;
+                            this.addBlock();
+                        }, Math.floor(2000 / this.speedMultiplier));
+                    }
+                }, totalAnimationTime);
+            }, 600);
+        }
+        
+        highlightLoop(loop) {
+            const board = document.getElementById('gameBoard');
+            if (!board) return;
+            
+            for (const [row, col] of loop) {
+                const cellIndex = row * this.size + col;
+                const cell = board.children[cellIndex];
+                if (cell) {
+                    cell.classList.add('loop-highlight');
+                }
+            }
+        }
+        
+        // ✅ v007: 150ms間隔順次消滅（音響同期）
+        animateSequentialDisappear(loop) {
+            const board = document.getElementById('gameBoard');
+            if (!board) return;
+            
+            loop.forEach((position, index) => {
+                const [row, col] = position;
+                
+                setTimeout(() => {
+                    const cellIndex = row * this.size + col;
+                    const cell = board.children[cellIndex];
+                    if (cell) {
+                        cell.classList.remove('loop-highlight');
+                        cell.classList.add('block-disappear');
+                    }
+                }, index * 150);
+            });
+        }
+        
+        showScorePopup(loop, score) {
+            const centerRow = loop.reduce((sum, [row]) => sum + row, 0) / loop.length;
+            const centerCol = loop.reduce((sum, [, col]) => sum + col, 0) / loop.length;
+            
+            const board = document.getElementById('gameBoard');
+            if (!board) return;
+            
+            const cellSize = parseInt(board.style.width) / this.size;
+            
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.textContent = `+${score}`;
+            popup.style.left = `${centerCol * cellSize + cellSize / 2}px`;
+            popup.style.top = `${centerRow * cellSize + cellSize / 2}px`;
+            
+            board.appendChild(popup);
+            
+            setTimeout(() => {
+                if (board.contains(popup)) {
+                    board.removeChild(popup);
+                }
+            }, 1500);
+        }
+        
+        generateSpiral() {
+            const spiral = [];
+            const centerRow = Math.floor(this.size / 2);
+            const centerCol = Math.floor(this.size / 2);
+            
+            spiral.push([centerRow, centerCol]);
+            
+            let row = centerRow;
+            let col = centerCol;
+            let steps = 1;
+            
+            const directions = [[0, 1], [-1, 0], [0, -1], [1, 0]];
+            let dirIndex = 0;
+            
+            while (spiral.length < this.size * this.size) {
+                for (let i = 0; i < 2; i++) {
+                    const [dRow, dCol] = directions[dirIndex];
+                    for (let j = 0; j < steps; j++) {
+                        row += dRow;
+                        col += dCol;
+                        if (row >= 0 && row < this.size && col >= 0 && col < this.size) {
+                            spiral.push([row, col]);
+                        }
+                    }
+                    dirIndex = (dirIndex + 1) % 4;
+                }
+                steps++;
+            }
+            
+            return spiral;
+        }
+        
+        addBlock() {
+            // ✅ v007: ブロック生成可能チェック
+            if (!this.canGenerateBlocks) return;
+            
+            const spiral = this.generateSpiral();
+            
+            for (const [row, col] of spiral) {
+                if (!this.board[row][col]) {
+                    const blockType = Math.random() < 0.6 ? 'I' : 'L';
+                    const maxRotation = blockType === 'I' ? 2 : 4;
+                    this.board[row][col] = {
+                        type: blockType,
+                        rotation: Math.floor(Math.random() * maxRotation)
+                    };
+                    
+                    soundManager.playBlockAppearSound();
+                    this.updatePathColors();
+                    this.render();
+                    this.checkLoops();
+                    
+                    if (this.isBoardFull()) {
+                        this.startEmergencyMode();
+                    }
+                    
+                    return;
+                }
+            }
+            
+            this.gameOver();
+        }
+        
+        isBoardFull() {
+            return this.board.every(row => row.every(cell => cell !== null));
+        }
+        
+        startEmergencyMode() {
+            if (this.emergencyMode) return;
+            
+            this.emergencyMode = true;
+            this.emergencyTimer = 20;
+            
+            soundManager.playEmergencySound();
+            
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+            }
+            
+            this.timerInterval = setInterval(() => {
+                if (!this.running || this.paused) return;
+                
+                this.emergencyTimer--;
+                
+                if (this.emergencyTimer <= 0) {
+                    this.gameOver();
+                }
+            }, 1000);
+        }
+        
+        start() {
+            this.size = tempSettings.fieldSize;
+            this.score = 0;
+            this.running = true;
+            this.paused = false;
+            this.emergencyMode = false;
+            this.emergencyTimer = 20;
+            this.speedMultiplier = tempSettings.gameSpeed;
+            
+            // ✅ v007: 消滅中管理システム初期化
+            this.canGenerateBlocks = true;
+            this.disappearingBlocks.clear();
+            
+            this.init();
+            
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+            }
+            
+            this.addBlock();
+            this.startBlockTimer();
+        }
+        
+        startBlockTimer() {
+            const baseInterval = 2000;
+            const interval = Math.floor(baseInterval / this.speedMultiplier);
+            
+            this.timerInterval = setInterval(() => {
+                if (!this.running || this.paused || this.emergencyMode) return;
+                this.addBlock();
+            }, interval);
+        }
+        
+        // ✅ v007: リアルタイム速度変更（非破壊的）
+        setSpeed(multiplier) {
+            this.speedMultiplier = multiplier;
+            
+            if (this.timerInterval && !this.emergencyMode) {
+                clearInterval(this.timerInterval);
+                this.startBlockTimer();
+            }
+        }
+        
+        togglePause() {
+            this.paused = !this.paused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = this.paused ? '▶️' : '⏸️';
+        }
+        
+        gameOver() {
+            this.running = false;
+            if (this.timerInterval) {
+                clearInterval(this.timerInterval);
+            }
+            
+            // 緊急モード警告音停止
+            soundManager.stopEmergencySound();
+            
+            // ゲームオーバー爆発音
+            soundManager.playGameOverSound();
+            
+            const finalScore = document.getElementById('finalScore');
+            if (finalScore) finalScore.textContent = this.score;
+            
+            const gameOverEl = document.getElementById('gameOver');
+            if (gameOverEl) gameOverEl.style.display = 'flex';
+        }
+    }
+    
+    function newGame() {
+        const gameOverEl = document.getElementById('gameOver');
+        if (gameOverEl) gameOverEl.style.display = 'none';
+        
+        if (game) {
+            if (game.timerInterval) {
+                clearInterval(game.timerInterval);
+            }
+        }
+        
+        game = new Game();
+        game.start();
+    }
+    
+    function togglePause() {
+        if (game) {
+            game.togglePause();
+        }
+    }
+    
+    function resetHighScore() {
+        if (confirm('ハイスコアをリセットしますか？')) {
+            highScoreManager.resetHighScore();
+            alert('ハイスコアをリセットしました');
+        }
+    }
+    
+    function openSettings() {
+        tempSettings.fieldSize = game ? game.size : 11;
+        tempSettings.gameSpeed = game ? game.speedMultiplier : 1;
+        tempSettings.soundEffects = soundManager.enabled;
+        tempSettings.backgroundMusic = soundManager.musicEnabled;
+        
+        const modal = document.getElementById('settingsModal');
+        modal.style.display = 'flex';
+        
+        updateFieldSizeSelection();
+        updateSpeedSelection();
+        updateAudioSettings();
+        highScoreManager.updateHighScoreDisplay();
+    }
+    
+    function closeSettings() {
+        const modal = document.getElementById('settingsModal');
+        modal.style.display = 'none';
+    }
+    
+    // ✅ v007: 非破壊的設定変更システム
+    function applySettings() {
+        // 破壊的変更（ゲームリセット必要）
+        if (tempSettings.fieldSize !== (game ? game.size : 11)) {
+            newGame();
+            return;
+        }
+        
+        // 非破壊的変更（ゲーム継続）
+        if (game) {
+            game.setSpeed(tempSettings.gameSpeed);
+        }
+        
+        soundManager.setEnabled(tempSettings.soundEffects);
+        soundManager.setMusicEnabled(tempSettings.backgroundMusic);
+        
+        closeSettings();
+    }
+    
+    function updateFieldSizeSelection() {
+        document.querySelectorAll('.size-option').forEach(option => {
+            const size = parseInt(option.dataset.size);
+            option.classList.toggle('selected', size === tempSettings.fieldSize);
+        });
+    }
+    
+    function updateSpeedSelection() {
+        document.querySelectorAll('.speed-option').forEach(option => {
+            const speed = parseFloat(option.dataset.speed);
+            option.classList.toggle('selected', speed === tempSettings.gameSpeed);
+        });
+    }
+    
+    function updateAudioSettings() {
+        const soundEffectsCheckbox = document.getElementById('soundEffects');
+        const backgroundMusicCheckbox = document.getElementById('backgroundMusic');
+        
+        if (soundEffectsCheckbox) soundEffectsCheckbox.checked = tempSettings.soundEffects;
+        if (backgroundMusicCheckbox) backgroundMusicCheckbox.checked = tempSettings.backgroundMusic;
+    }
+    
+    // イベントリスナー設定
+    document.addEventListener('DOMContentLoaded', () => {
+        // フィールドサイズ選択
+        const sizeOptions = document.querySelectorAll('.size-option');
+        sizeOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const size = parseInt(option.dataset.size);
+                tempSettings.fieldSize = size;
+                updateFieldSizeSelection();
+            });
+        });
+        
+        // ゲーム速度選択
+        const speedOptions = document.querySelectorAll('.speed-option');
+        speedOptions.forEach(option => {
+            option.addEventListener('click', () => {
+                const speed = parseFloat(option.dataset.speed);
+                tempSettings.gameSpeed = speed;
+                updateSpeedSelection();
+            });
+        });
+        
+        // オーディオ設定
+        document.getElementById('soundEffects').addEventListener('change', (e) => {
+            tempSettings.soundEffects = e.target.checked;
+        });
+        
+        document.getElementById('backgroundMusic').addEventListener('change', (e) => {
+            tempSettings.backgroundMusic = e.target.checked;
+        });
+    });
+    
+    window.addEventListener('load', () => {
+        newGame();
+    });
+</script>
+</html>
