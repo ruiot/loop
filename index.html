@@ -621,8 +621,8 @@
                 for (let i = 1; i <= loopLength; i++) {
                     let freq = baseFreq * i;
                     
-                    // オクターブ折り返し（1600Hz超過時に1/4）
-                    while (freq > 1600) {
+                    // オクターブ折り返し（3200Hz超過時に1/4）
+                    while (freq > 3200) {
                         freq = freq / 4;
                     }
                     
