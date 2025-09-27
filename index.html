@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>渦巻きパイプパズル v008</title>
+    <title>渦巻きパイプパズル v009f</title>
     <style>
-        /* v008 - ステップ1: 色システム大幅簡素化 */
+        /* v009f - Phase1完了版: CSS改良保持+8色mod循環+ループ検出最適化 */
         body {
             margin: 0;
             padding: 0;
@@ -23,28 +23,21 @@
             position: relative;
         }
         
-        .top-bar {
-            position: absolute;
-            top: 5px;
-            left: 10px;
-            right: 10px;
+        .score-bar {
+            padding: 8px 15px;
+            background: rgba(0,0,0,0.3);
             display: flex;
             justify-content: space-between;
             align-items: center;
             font-size: 16px;
             font-weight: bold;
-            height: 25px;
             z-index: 10;
         }
         
         .controls-container {
-            position: absolute;
-            top: 5px;
-            right: 10px;
             display: flex;
             gap: 8px;
             align-items: center;
-            z-index: 10;
         }
         
         .score-display {
@@ -57,12 +50,24 @@
             margin-left: 15px;
         }
         
+        .version-display {
+            position: fixed;
+            bottom: 5px;
+            left: 5px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.6);
+            background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            z-index: 1;
+        }
+        
         .game-board-container {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 35px 5px 15px 5px;
+            padding: 10px 5px 15px 5px;
         }
         
         .game-board {
@@ -174,7 +179,6 @@
             height: 65%;
         }
         
-        /* ループ検出時のアニメーション */
         .loop-highlight {
             animation: loopPulse 0.6s ease-in-out;
             background: linear-gradient(145deg, #FFD700, #FF8C00) !important;
@@ -443,8 +447,10 @@
     </style>
 </head>
 <body>
+    <div class="version-display">v009f</div>
+    
     <div class="game-container">
-        <div class="top-bar">
+        <div class="score-bar">
             <div class="score-display">
                 スコア: <span id="score">0</span>
                 <span class="high-score">最高: <span id="highScore">0</span></span>
@@ -527,10 +533,13 @@
     </div>
 
     <script>
-        // v008 - バージョン001
-        // ステップ1: 8色mod循環 + 動的CSS生成 + gradient削除
+        // v009f - Phase1完了版
+        // 1. サウンド倍音改善（制限撤廃+オクターブ折り返し）✅
+        // 2. ループ検出最適化（checkLoops→processLoopAt）✅
+        // 3. UI縦長対応（スコア表示移動）✅
+        // 4. バージョン表示追加 ✅
         
-        // 8色配列（レトロゲーム風・3桁hex）
+        // 8色配列（短縮16進数）
         const pipeColors = ['#F00','#F80','#FF0','#8F0','#0F8','#08F','#80F','#F0F'];
         
         // 動的CSS生成（起動時1回実行）
@@ -603,14 +612,20 @@
                 this.playWhiteNoise(0.05, 0.03);
             }
             
+            // v009r: 倍音制限撤廃 + オクターブ折り返し
             playLoopCompleteSound(loopLength) {
                 if (!this.enabled) return;
                 
                 const baseFreq = 200;
-                const harmonics = Math.min(loopLength, 16);
                 
-                for (let i = 1; i <= harmonics; i++) {
-                    const freq = baseFreq * i;
+                for (let i = 1; i <= loopLength; i++) {
+                    let freq = baseFreq * i;
+                    
+                    // オクターブ折り返し（1600Hz超過時に1/4）
+                    while (freq > 1600) {
+                        freq = freq / 4;
+                    }
+                    
                     const volume = 0.1 / Math.sqrt(i);
                     setTimeout(() => {
                         this.playTone(freq, 0.3, volume);
@@ -634,17 +649,49 @@
                 }
                 
                 this.emergencyBeepInterval = setInterval(() => {
-                    this.playTone(800, 0.2, 0.08);
-                    setTimeout(() => {
-                        this.playTone(600, 0.2, 0.08);
-                    }, 300);
-                }, 1000);
+                    if (!this.enabled) return;
+                    this.playTone(880, 0.2, 0.06);
+                    setTimeout(() => this.playTone(440, 0.2, 0.06), 250);
+                }, 800);
             }
             
             stopEmergencySound() {
                 if (this.emergencyBeepInterval) {
                     clearInterval(this.emergencyBeepInterval);
                     this.emergencyBeepInterval = null;
+                }
+            }
+            
+            playWhiteNoise(duration, volume = 0.1) {
+                if (!this.audioContext) {
+                    console.log(`🔊 ホワイトノイズ再生（代替）: ${duration}s`);
+                    return;
+                }
+                
+                try {
+                    const bufferSize = this.audioContext.sampleRate * duration;
+                    const buffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
+                    const data = buffer.getChannelData(0);
+                    
+                    for (let i = 0; i < bufferSize; i++) {
+                        data[i] = (Math.random() * 2 - 1) * volume;
+                    }
+                    
+                    const source = this.audioContext.createBufferSource();
+                    const gainNode = this.audioContext.createGain();
+                    
+                    source.buffer = buffer;
+                    source.connect(gainNode);
+                    gainNode.connect(this.audioContext.destination);
+                    
+                    gainNode.gain.setValueAtTime(0, this.audioContext.currentTime);
+                    gainNode.gain.linearRampToValueAtTime(1, this.audioContext.currentTime + 0.005);
+                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
+                    
+                    source.start(this.audioContext.currentTime);
+                    source.stop(this.audioContext.currentTime + duration);
+                } catch (error) {
+                    console.log(`🔊 ホワイトノイズエラー: ${error.message}`);
                 }
             }
             
@@ -687,35 +734,6 @@
                     oscillator.stop(this.audioContext.currentTime + duration);
                 } catch (error) {
                     console.log(`🔊 音再生エラー: ${error.message}`);
-                }
-            }
-            
-            playWhiteNoise(duration, volume) {
-                if (!this.audioContext) return;
-                
-                try {
-                    const bufferSize = this.audioContext.sampleRate * duration;
-                    const noiseBuffer = this.audioContext.createBuffer(1, bufferSize, this.audioContext.sampleRate);
-                    const output = noiseBuffer.getChannelData(0);
-                    
-                    for (let i = 0; i < bufferSize; i++) {
-                        output[i] = Math.random() * 2 - 1;
-                    }
-                    
-                    const whiteNoise = this.audioContext.createBufferSource();
-                    whiteNoise.buffer = noiseBuffer;
-                    
-                    const gainNode = this.audioContext.createGain();
-                    gainNode.gain.setValueAtTime(volume, this.audioContext.currentTime);
-                    gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioContext.currentTime + duration);
-                    
-                    whiteNoise.connect(gainNode);
-                    gainNode.connect(this.audioContext.destination);
-                    
-                    whiteNoise.start(this.audioContext.currentTime);
-                    whiteNoise.stop(this.audioContext.currentTime + duration);
-                } catch (error) {
-                    console.log(`🔊 ノイズ再生エラー: ${error.message}`);
                 }
             }
             
@@ -838,7 +856,8 @@
                 soundManager.playRotateSound();
                 this.updatePathColors();
                 this.render();
-                this.checkLoops();
+                // v009f: ループ検出最適化（局所検出）
+                this.processLoopAt(row, col);
             }
             
             clickCell(row, col) {
@@ -855,7 +874,8 @@
                 soundManager.playRotateSound();
                 this.updatePathColors();
                 this.render();
-                this.checkLoops();
+                // v009f: ループ検出最適化（局所検出）
+                this.processLoopAt(row, col);
             }
             
             addBlock() {
@@ -872,14 +892,14 @@
                         this.board[row][col] = {
                             type: type,
                             rotation: Math.floor(Math.random() * maxRot),
-                            pathColor: undefined,
-                            lengthClass: ''
+                            pathColor: undefined
                         };
                         
                         soundManager.playBlockAppearSound();
                         this.updatePathColors();
                         this.render();
-                        this.checkLoops();
+                        // v009f: ループ検出最適化（局所検出）
+                        this.processLoopAt(row, col);
                         
                         return true;
                     }
@@ -919,14 +939,13 @@
                 return spiral;
             }
             
-            // v008: 8色mod循環システム
+            // v009r: 8色mod循環システム
             updatePathColors() {
                 try {
                     for (let i = 0; i < this.size; i++) {
                         for (let j = 0; j < this.size; j++) {
                             if (this.board[i][j]) {
                                 this.board[i][j].pathColor = undefined;
-                                this.board[i][j].lengthClass = '';
                             }
                         }
                     }
@@ -939,7 +958,7 @@
                                 const path = this.tracePath(i, j, globalVisited);
                                 
                                 if (path && path.length > 0) {
-                                    // v008: 8色mod循環
+                                    // v009r: 8色mod循環
                                     const pathColor = this.getPathColorId(path.length);
                                     
                                     for (const [row, col] of path) {
@@ -956,7 +975,7 @@
                 }
             }
             
-            // v008: 8色mod循環（1個=0、2個=1、...、8個=7、9個=0...）
+            // v009r: 8色mod循環（1個=0、2個=1、...、8個=7、9個=0...）
             getPathColorId(pathLength) {
                 return (pathLength - 1) % 8;
             }
@@ -1029,18 +1048,12 @@
                 return hasConnection1 && hasConnection2;
             }
             
-            checkLoops() {
-                for (let i = 0; i < this.size; i++) {
-                    for (let j = 0; j < this.size; j++) {
-                        if (this.board[i][j]) {
-                            const visited = new Set();
-                            const loop = this.findLoop(i, j, visited);
-                            if (loop.length > 2) {
-                                this.removeLoop(loop);
-                                return;
-                            }
-                        }
-                    }
+            // v009f: ループ検出最適化 - 局所検出関数追加
+            processLoopAt(startRow, startCol) {
+                const visited = new Set();
+                const loop = this.findLoop(startRow, startCol, visited);
+                if (loop.length > 2) {
+                    this.removeLoop(loop);
                 }
             }
             
@@ -1375,7 +1388,7 @@
         }
         
         function togglePause() {
-            if (game.running) {
+            if (game && game.running) {
                 game.pause();
             }
         }
@@ -1409,7 +1422,7 @@
         
         // 初期化
         window.addEventListener('load', () => {
-            // v008: 動的CSS生成を最初に実行
+            // v009r: 動的CSS生成を最初に実行
             generatePipeStyles();
             
             highScoreManager = new HighScoreManager();
@@ -1422,4 +1435,4 @@
         });
     </script>
 </body>
-</html>r
+</html>
