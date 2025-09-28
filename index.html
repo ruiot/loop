@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>渦巻きパイプパズル v017</title>
+    <title>渦巻きパイプパズル v018</title>
     <style>
-        /* v017 - UI改善版: アラート削除、ログ無効化、スピード修正 */
+        /* v018 - インフレーションモード実装 */
         body {
             margin: 0;
             padding: 0;
@@ -62,7 +62,7 @@
             z-index: 1;
         }
         
-        .torus-indicator {
+        .mode-indicator {
             position: fixed;
             bottom: 5px;
             right: 5px;
@@ -73,6 +73,8 @@
             border-radius: 3px;
             z-index: 1;
         }
+        
+        /* v018a: インフレーション表示削除（ミニマル化） */
         
         .game-board-container {
             flex: 1;
@@ -402,6 +404,45 @@
             border-color: #45a049;
         }
         
+        /* v018: モード選択UI */
+        .mode-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-top: 8px;
+        }
+        
+        .mode-option {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 12px 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .mode-option:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .mode-option.selected {
+            background: #4CAF50;
+            border-color: #45a049;
+        }
+        
+        .mode-option .mode-title {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .mode-option .mode-desc {
+            font-size: 10px;
+            opacity: 0.8;
+        }
+        
         .settings-option {
             display: flex;
             justify-content: space-between;
@@ -457,7 +498,6 @@
             background: #FF5252;
         }
         
-        /* v017: 緊急モード視覚効果（アラート削除、色のみ） */
         .emergency-mode {
             animation: emergencyFlash 0.8s infinite;
             border: 3px solid #FF6B6B !important;
@@ -470,8 +510,8 @@
     </style>
 </head>
 <body>
-    <div class="version-display">v017</div>
-    <div class="torus-indicator">🌐 トーラス</div>
+    <div class="version-display">v018a</div>
+    <div class="mode-indicator" id="modeIndicator">🌐 トーラス</div>
     
     <div class="game-container">
         <div class="score-bar">
@@ -503,6 +543,21 @@
     <div class="settings-modal" id="settingsModal">
         <div class="settings-content">
             <div class="settings-title">設定</div>
+            
+            <!-- v018: ゲームモード選択 -->
+            <div class="settings-section">
+                <h4>ゲームモード</h4>
+                <div class="mode-grid">
+                    <div class="mode-option selected" data-mode="classic">
+                        <div class="mode-title">クラシック</div>
+                        <div class="mode-desc">固定フィールド</div>
+                    </div>
+                    <div class="mode-option" data-mode="inflation">
+                        <div class="mode-title">インフレーション</div>
+                        <div class="mode-desc">フィールド拡張</div>
+                    </div>
+                </div>
+            </div>
             
             <div class="settings-section">
                 <h4>フィールドサイズ</h4>
@@ -557,18 +612,8 @@
     </div>
 
     <script>
-        // v017 - UI改善版
-        // 1. フリックチート修正：handleFlick()にpausedチェック ✅
-        // 2. ゲームオーバー後表裏問題：DOM初期化完全化 ✅
-        // 3. スコア表示修正：呼び出しタイミング調整 ✅
-        // 4. 倍音完全削除：シンプルな音響システム ✅
-        // 5. 木魚音音量調整：0.03→0.08に増量 ✅
-        // 6. 緊急モード一時停止対応：ポーズ中はカウントダウン停止 ✅
-        // 7. タイマー重複修正：addBlock多重実行問題解決 ✅
-        // 8. 緊急モード音量抑制：0.06→0.03 ✅
-        // 9. 緊急モード視覚化：色変化のみ（アラート削除）
-        // 10. ログ無効化：デバッグログ削除
-        // 11. スピード動作修正：設定変更の適切な反映
+        // v018a - ミニマル化 + 99×99対応
+        // インフレーション表示削除、音響のみフィードバック
         
         // 8色配列（短縮16進数）
         const pipeColors = ['#F00','#F80','#FF0','#8F0','#0F8','#08F','#80F','#F0F'];
@@ -643,22 +688,27 @@
                 this.playWhiteNoise(0.05, 0.03);
             }
             
-            // v014: 倍音完全削除（シンプル化）
             playLoopCompleteSound(loopLength) {
-                // 倍音削除：ポコポコ音のみでシンプルに
+                // v018: シンプル化（倍音削除）
             }
             
-            // v012: 個別ブロック消滅音（ポコポコ音）
             playBlockDisappearSound() {
                 if (!this.enabled) return;
                 this.playTone(300, 0.2, 0.05);
             }
             
-            // v013: 木魚音音量調整（0.03→0.08）
             playBlockAppearSound() {
                 if (!this.enabled) return;
-                // 木魚のような低く短い音（音量増量）
                 this.playTone(150, 0.1, 0.08);
+            }
+            
+            // v018: インフレーション音
+            playInflationSound() {
+                if (!this.enabled) return;
+                // 宇宙的な上昇音
+                this.playTone(220, 0.5, 0.1);
+                setTimeout(() => this.playTone(330, 0.5, 0.08), 200);
+                setTimeout(() => this.playTone(440, 0.5, 0.06), 400);
             }
             
             playEmergencySound() {
@@ -673,7 +723,6 @@
                 
                 this.emergencyBeepInterval = setInterval(() => {
                     if (!this.enabled) return;
-                    // v016: 音量抑制（0.06→0.03）
                     this.playTone(880, 0.2, 0.03);
                     setTimeout(() => this.playTone(440, 0.2, 0.03), 250);
                 }, 800);
@@ -687,10 +736,7 @@
             }
             
             playWhiteNoise(duration, volume = 0.1) {
-                if (!this.audioContext) {
-                    console.log(`🔊 ホワイトノイズ再生（代替）: ${duration}s`);
-                    return;
-                }
+                if (!this.audioContext) return;
                 
                 try {
                     const bufferSize = this.audioContext.sampleRate * duration;
@@ -735,10 +781,7 @@
             }
             
             playTone(frequency, duration, volume = 0.1) {
-                if (!this.audioContext) {
-                    console.log(`🔊 音再生（代替）: ${frequency}Hz, ${duration}s`);
-                    return;
-                }
+                if (!this.audioContext) return;
                 
                 try {
                     const oscillator = this.audioContext.createOscillator();
@@ -763,12 +806,10 @@
             
             setEnabled(enabled) {
                 this.enabled = enabled;
-                console.log(`🔊 サウンド効果: ${enabled ? 'ON' : 'OFF'}`);
             }
             
             setMusicEnabled(enabled) {
                 this.musicEnabled = enabled;
-                console.log(`🎵 BGM: ${enabled ? 'ON' : 'OFF'}`);
             }
         }
         
@@ -790,7 +831,12 @@
                 this.canGenerateBlocks = true;
                 this.disappearingBlocks = new Set();
                 this.wasPausedByModal = false;
-                this.emergencyInterval = null; // v014: 緊急モードタイマーID保持
+                this.emergencyInterval = null;
+                
+                // v018a: インフレーションモード（99×99対応）
+                this.gameMode = 'classic'; // 'classic' or 'inflation'
+                this.maxSize = 99; // スクリーンセーバー対応
+                
                 this.initBoard();
                 this.setupEventListeners();
             }
@@ -806,15 +852,12 @@
                 ];
             }
             
-            // v012: DOM初期化完全化
             setupEventListeners() {
                 const board = document.getElementById('gameBoard');
                 if (board) {
-                    // 既存のイベントリスナーをクリア
                     const newBoard = board.cloneNode(false);
                     board.parentNode.replaceChild(newBoard, board);
                     
-                    // 新しいイベントリスナーを設定
                     const gameBoard = document.getElementById('gameBoard');
                     gameBoard.addEventListener('click', this.handleBoardClick.bind(this));
                     gameBoard.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: false });
@@ -862,9 +905,8 @@
                 }
             }
             
-            // v012: フリックチート修正
             handleFlick(row, col, angle) {
-                if (!this.running || this.paused) return; // チート修正
+                if (!this.running || this.paused) return;
                 if (!this.board[row][col]) return;
                 
                 const cellKey = `${row},${col}`;
@@ -919,9 +961,6 @@
             }
             
             addBlock() {
-                // v017: ログ無効化
-                // console.log(`addBlock called: canGenerate=${this.canGenerateBlocks}, time=${Date.now()}, emergency=${this.emergencyMode}`);
-                
                 if (!this.canGenerateBlocks) return;
                 
                 const spiral = this.generateSpiral();
@@ -938,7 +977,7 @@
                             pathColor: undefined
                         };
                         
-                        soundManager.playBlockAppearSound(); // v012: 木魚音復活
+                        soundManager.playBlockAppearSound();
                         this.updatePathColors();
                         this.render();
                         this.processLoopAt(row, col);
@@ -1148,12 +1187,10 @@
             removeLoop(loop) {
                 this.canGenerateBlocks = false;
                 
-                // 緊急モード即座終了
                 if (this.emergencyMode) {
                     this.emergencyMode = false;
                     soundManager.stopEmergencySound();
                     
-                    // v017: 緊急モード視覚効果終了（アラート削除）
                     const gameContainer = document.querySelector('.game-container');
                     if (gameContainer) gameContainer.classList.remove('emergency-mode');
                     
@@ -1173,8 +1210,6 @@
                 
                 const score = loop.length * loop.length;
                 this.score += score;
-                
-                // v012: スコア表示修正（即座更新）
                 this.updateScore();
                 
                 const isNewRecord = highScoreManager.setHighScore(this.score);
@@ -1182,7 +1217,7 @@
                     highScoreManager.updateHighScoreDisplay();
                 }
                 
-                soundManager.playLoopCompleteSound(loop.length); // v014: 空処理（倍音削除）
+                soundManager.playLoopCompleteSound(loop.length);
                 this.highlightLoop(loop);
                 this.showScorePopup(loop, score);
                 
@@ -1202,9 +1237,7 @@
                         this.render();
                         this.canGenerateBlocks = true;
                         
-                        // v017: タイマー重複防止修正（ログ削除）
                         if (this.running && !this.paused) {
-                            // 既存タイマーを必ずクリア
                             if (this.timerInterval) {
                                 clearInterval(this.timerInterval);
                                 this.timerInterval = null;
@@ -1232,7 +1265,6 @@
                 }
             }
             
-            // v014: ポコポコ音のみ（倍音削除）
             animateSequentialDisappear(loop) {
                 const board = document.getElementById('gameBoard');
                 if (!board) return;
@@ -1246,8 +1278,6 @@
                         if (cell) {
                             cell.classList.remove('loop-highlight');
                             cell.classList.add('block-disappear');
-                            
-                            // v014: ポコポコ音のみ（シンプル化）
                             soundManager.playBlockDisappearSound();
                         }
                     }, index * 150);
@@ -1301,7 +1331,6 @@
                 }, Math.floor(2000 / this.speedMultiplier));
             }
             
-            // v016: 一時停止時の緊急モード音響制御
             pause() {
                 this.paused = !this.paused;
                 const pauseBtn = document.getElementById('pauseBtn');
@@ -1309,7 +1338,6 @@
                     pauseBtn.textContent = this.paused ? '▶️' : '⏸️';
                 }
                 
-                // v016: 緊急モード音響のポーズ対応
                 if (this.emergencyMode) {
                     if (this.paused) {
                         soundManager.stopEmergencySound();
@@ -1335,12 +1363,10 @@
                 this.wasPausedByModal = false;
             }
             
-            // v017: 緊急モード視覚化（アラート削除）
             startEmergencyMode() {
                 this.emergencyMode = true;
                 this.emergencyTimer = 20;
                 
-                // v017: 色変化のみ（アラート削除）
                 const gameContainer = document.querySelector('.game-container');
                 if (gameContainer) gameContainer.classList.add('emergency-mode');
                 
@@ -1366,17 +1392,87 @@
                     this.emergencyTimer--;
                     
                     if (this.emergencyTimer <= 0) {
-                        this.gameOver();
+                        // v018: インフレーションモード判定
+                        if (this.gameMode === 'inflation' && this.size < this.maxSize) {
+                            this.executeInflation();
+                        } else {
+                            this.gameOver();
+                        }
                         clearInterval(this.emergencyInterval);
                     }
                 }, 1000);
+            }
+            
+            // v018a: ミニマル化インフレーション実行
+            executeInflation() {
+                this.emergencyMode = false;
+                soundManager.stopEmergencySound();
+                
+                const gameContainer = document.querySelector('.game-container');
+                if (gameContainer) gameContainer.classList.remove('emergency-mode');
+                
+                // v018a: メッセージ削除、音のみ
+                soundManager.playInflationSound();
+                
+                // フィールド拡張（短縮タイミング）
+                setTimeout(() => {
+                    this.expandField();
+                    this.resetAfterInflation();
+                }, 1000);
+            }
+            
+            // v018a: 表示関数削除
+            // showInflationDisplay() 削除
+            
+            expandField() {
+                const newSize = this.size + 2;
+                const newBoard = Array(newSize).fill().map(() => Array(newSize).fill(null));
+                
+                // 既存盤面を中央に配置
+                const offset = 1;
+                for (let i = 0; i < this.size; i++) {
+                    for (let j = 0; j < this.size; j++) {
+                        if (this.board[i][j]) {
+                            newBoard[i + offset][j + offset] = this.board[i][j];
+                        }
+                    }
+                }
+                
+                this.size = newSize;
+                this.board = newBoard;
+                
+                this.updatePathColors();
+                this.render();
+                this.updateModeIndicator();
+            }
+            
+            resetAfterInflation() {
+                this.emergencyTimer = 20;
+                
+                if (this.running && !this.paused) {
+                    this.timerInterval = setInterval(() => {
+                        if (!this.running || this.paused || this.emergencyMode) return;
+                        this.addBlock();
+                    }, Math.floor(2000 / this.speedMultiplier));
+                }
+            }
+            
+            updateModeIndicator() {
+                const indicator = document.getElementById('modeIndicator');
+                if (indicator) {
+                    if (this.gameMode === 'inflation') {
+                        // v018a: 巨大サイズでも表示
+                        indicator.textContent = `🌌 ${this.size}×${this.size}`;
+                    } else {
+                        indicator.textContent = '🌐 トーラス';
+                    }
+                }
             }
             
             gameOver() {
                 this.running = false;
                 this.emergencyMode = false;
                 
-                // v017: 緊急モード視覚効果終了（アラート削除）
                 const gameContainer = document.querySelector('.game-container');
                 if (gameContainer) gameContainer.classList.remove('emergency-mode');
                 
@@ -1398,7 +1494,6 @@
                 document.getElementById('gameOver').style.display = 'flex';
             }
             
-            // v012: スコア表示修正（nullチェック強化）
             updateScore() {
                 const scoreEl = document.getElementById('score');
                 if (scoreEl) {
@@ -1458,11 +1553,9 @@
                 }
             }
             
-            // v017: スピード動作修正
             setSpeed(newSpeed) {
                 this.speedMultiplier = newSpeed;
                 
-                // v017: ゲーム中でもタイマーを即座に更新
                 if (this.running && !this.emergencyMode && this.timerInterval) {
                     clearInterval(this.timerInterval);
                     this.timerInterval = setInterval(() => {
@@ -1470,6 +1563,12 @@
                         this.addBlock();
                     }, Math.floor(2000 / this.speedMultiplier));
                 }
+            }
+            
+            // v018: ゲームモード設定
+            setGameMode(mode) {
+                this.gameMode = mode;
+                this.updateModeIndicator();
             }
         }
         
@@ -1494,10 +1593,16 @@
         }
         
         function applySettings() {
+            const selectedMode = document.querySelector('.mode-option.selected');
             const selectedSize = document.querySelector('.size-option.selected');
             const selectedSpeed = document.querySelector('.speed-option.selected');
             const soundEnabled = document.getElementById('soundEnabled').checked;
             const musicEnabled = document.getElementById('musicEnabled').checked;
+            
+            if (selectedMode) {
+                const newMode = selectedMode.dataset.mode;
+                game.setGameMode(newMode);
+            }
             
             if (selectedSize) {
                 const newSize = parseInt(selectedSize.dataset.size);
@@ -1527,11 +1632,9 @@
             }
         }
         
-        // v012: DOM初期化完全化
         function newGame() {
             document.getElementById('gameOver').style.display = 'none';
             
-            // 既存ゲームの完全クリーンアップ
             if (game) {
                 if (game.timerInterval) {
                     clearInterval(game.timerInterval);
@@ -1547,6 +1650,15 @@
         }
         
         function initSettingsUI() {
+            // モード選択
+            document.querySelectorAll('.mode-option').forEach(option => {
+                option.addEventListener('click', () => {
+                    document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('selected'));
+                    option.classList.add('selected');
+                });
+            });
+            
+            // サイズ選択
             document.querySelectorAll('.size-option').forEach(option => {
                 option.addEventListener('click', () => {
                     document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
@@ -1554,6 +1666,7 @@
                 });
             });
             
+            // 速度選択
             document.querySelectorAll('.speed-option').forEach(option => {
                 option.addEventListener('click', () => {
                     document.querySelectorAll('.speed-option').forEach(o => o.classList.remove('selected'));
