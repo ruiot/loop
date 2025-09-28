@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>渦巻きパイプパズル v009f</title>
+    <title>渦巻きパイプパズル v010</title>
     <style>
-        /* v009f - Phase1完了版: CSS改良保持+8色mod循環+ループ検出最適化 */
+        /* v010 - トーラス実装版: フラットモード廃止、境界接続実装 */
         body {
             margin: 0;
             padding: 0;
@@ -57,6 +57,18 @@
             font-size: 11px;
             color: rgba(255,255,255,0.6);
             background: rgba(0,0,0,0.3);
+            padding: 2px 6px;
+            border-radius: 3px;
+            z-index: 1;
+        }
+        
+        .torus-indicator {
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.8);
+            background: rgba(0,50,100,0.4);
             padding: 2px 6px;
             border-radius: 3px;
             z-index: 1;
@@ -447,13 +459,14 @@
     </style>
 </head>
 <body>
-    <div class="version-display">v009f</div>
+    <div class="version-display">v010</div>
+    <div class="torus-indicator">🌐 トーラス</div>
     
     <div class="game-container">
         <div class="score-bar">
             <div class="score-display">
                 スコア: <span id="score">0</span>
-                <span class="high-score">最高: <span id="highScore">0</span></span>
+                <span class="high-score">ハイスコア: <span id="highScore">0</span></span>
             </div>
 
             <div class="controls-container">
@@ -533,11 +546,8 @@
     </div>
 
     <script>
-        // v009f - Phase1完了版
-        // 1. サウンド倍音改善（制限撤廃+オクターブ折り返し）✅
-        // 2. ループ検出最適化（checkLoops→processLoopAt）✅
-        // 3. UI縦長対応（スコア表示移動）✅
-        // 4. バージョン表示追加 ✅
+        // v010 - トーラス実装版
+        // フラットモード廃止、境界接続実装、contractible制約なし
         
         // 8色配列（短縮16進数）
         const pipeColors = ['#F00','#F80','#FF0','#8F0','#0F8','#08F','#80F','#F0F'];
@@ -612,7 +622,7 @@
                 this.playWhiteNoise(0.05, 0.03);
             }
             
-            // v009r: 倍音制限撤廃 + オクターブ折り返し
+            // v010: 倍音制限撤廃 + オクターブ折り返し
             playLoopCompleteSound(loopLength) {
                 if (!this.enabled) return;
                 
@@ -621,8 +631,8 @@
                 for (let i = 1; i <= loopLength; i++) {
                     let freq = baseFreq * i;
                     
-                    // オクターブ折り返し（3200Hz超過時に1/4）
-                    while (freq > 3200) {
+                    // オクターブ折り返し（1600Hz超過時に1/4）
+                    while (freq > 1600) {
                         freq = freq / 4;
                     }
                     
@@ -773,6 +783,14 @@
                 this.board = Array(this.size).fill().map(() => Array(this.size).fill(null));
             }
             
+            // v010: トーラス座標正規化関数
+            normalizeCoord(row, col) {
+                return [
+                    ((row % this.size) + this.size) % this.size,
+                    ((col % this.size) + this.size) % this.size
+                ];
+            }
+            
             setupEventListeners() {
                 const board = document.getElementById('gameBoard');
                 if (board) {
@@ -856,7 +874,6 @@
                 soundManager.playRotateSound();
                 this.updatePathColors();
                 this.render();
-                // v009f: ループ検出最適化（局所検出）
                 this.processLoopAt(row, col);
             }
             
@@ -874,7 +891,6 @@
                 soundManager.playRotateSound();
                 this.updatePathColors();
                 this.render();
-                // v009f: ループ検出最適化（局所検出）
                 this.processLoopAt(row, col);
             }
             
@@ -898,7 +914,6 @@
                         soundManager.playBlockAppearSound();
                         this.updatePathColors();
                         this.render();
-                        // v009f: ループ検出最適化（局所検出）
                         this.processLoopAt(row, col);
                         
                         return true;
@@ -939,7 +954,6 @@
                 return spiral;
             }
             
-            // v009r: 8色mod循環システム
             updatePathColors() {
                 try {
                     for (let i = 0; i < this.size; i++) {
@@ -958,7 +972,6 @@
                                 const path = this.tracePath(i, j, globalVisited);
                                 
                                 if (path && path.length > 0) {
-                                    // v009r: 8色mod循環
                                     const pathColor = this.getPathColorId(path.length);
                                     
                                     for (const [row, col] of path) {
@@ -975,7 +988,6 @@
                 }
             }
             
-            // v009r: 8色mod循環（1個=0、2個=1、...、8個=7、9個=0...）
             getPathColorId(pathLength) {
                 return (pathLength - 1) % 8;
             }
@@ -1011,6 +1023,7 @@
                 return path;
             }
             
+            // v010: トーラス対応の接続取得
             getConnections(row, col) {
                 if (!this.board[row] || !this.board[row][col]) return [];
                 
@@ -1022,7 +1035,12 @@
                         [[row - 1, col], [row + 1, col]],
                         [[row, col - 1], [row, col + 1]]
                     ];
-                    connections.push(...iConnections[pipe.rotation]);
+                    
+                    // v010: トーラス座標正規化を適用
+                    for (const [r, c] of iConnections[pipe.rotation]) {
+                        const [normalizedRow, normalizedCol] = this.normalizeCoord(r, c);
+                        connections.push([normalizedRow, normalizedCol]);
+                    }
                 } else if (pipe.type === 'L') {
                     const lConnections = [
                         [[row, col + 1], [row + 1, col]],
@@ -1030,25 +1048,33 @@
                         [[row, col - 1], [row - 1, col]],
                         [[row, col + 1], [row - 1, col]]
                     ];
-                    connections.push(...lConnections[pipe.rotation]);
+                    
+                    // v010: トーラス座標正規化を適用
+                    for (const [r, c] of lConnections[pipe.rotation]) {
+                        const [normalizedRow, normalizedCol] = this.normalizeCoord(r, c);
+                        connections.push([normalizedRow, normalizedCol]);
+                    }
                 }
                 
                 return connections;
             }
             
+            // v010: トーラス対応の接続判定
             isConnected(row1, col1, row2, col2) {
-                if (!this.board[row2] || !this.board[row2][col2]) return false;
+                // v010: 座標を正規化してから判定
+                const [nRow2, nCol2] = this.normalizeCoord(row2, col2);
+                
+                if (!this.board[nRow2] || !this.board[nRow2][nCol2]) return false;
                 
                 const connections1 = this.getConnections(row1, col1);
-                const connections2 = this.getConnections(row2, col2);
+                const connections2 = this.getConnections(nRow2, nCol2);
                 
-                const hasConnection1 = connections1.some(([r, c]) => r === row2 && c === col2);
+                const hasConnection1 = connections1.some(([r, c]) => r === nRow2 && c === nCol2);
                 const hasConnection2 = connections2.some(([r, c]) => r === row1 && c === col1);
                 
                 return hasConnection1 && hasConnection2;
             }
             
-            // v009f: ループ検出最適化 - 局所検出関数追加
             processLoopAt(startRow, startCol) {
                 const visited = new Set();
                 const loop = this.findLoop(startRow, startCol, visited);
@@ -1422,7 +1448,6 @@
         
         // 初期化
         window.addEventListener('load', () => {
-            // v009r: 動的CSS生成を最初に実行
             generatePipeStyles();
             
             highScoreManager = new HighScoreManager();
