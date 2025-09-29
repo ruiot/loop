@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>渦巻きパイプパズル v018</title>
+    <title>渦 v22</title>
     <style>
-        /* v018 - インフレーションモード実装 */
+        /* v22 - 設定簡略化版: サイズ選択削除 */
         body {
             margin: 0;
             padding: 0;
@@ -62,7 +62,7 @@
             z-index: 1;
         }
         
-        .mode-indicator {
+        .torus-indicator {
             position: fixed;
             bottom: 5px;
             right: 5px;
@@ -74,14 +74,12 @@
             z-index: 1;
         }
         
-        /* v018a: インフレーション表示削除（ミニマル化） */
-        
         .game-board-container {
             flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
-            padding: 10px 5px 15px 5px;
+            padding: 5px 5px 25px 5px; /* v19: 上部縮小、下部拡大 */
         }
         
         .game-board {
@@ -89,6 +87,7 @@
             border: 1px solid #444;
             border-radius: 4px;
             padding: 2px;
+            transition: all 0.5s ease; /* v20: 拡張アニメーション */
         }
         
         .cell {
@@ -348,34 +347,6 @@
             color: #ccc;
         }
         
-        .field-size-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-top: 8px;
-        }
-        
-        .size-option {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 8px 4px;
-            border-radius: 6px;
-            cursor: pointer;
-            text-align: center;
-            font-size: 12px;
-            transition: all 0.2s ease;
-        }
-        
-        .size-option:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .size-option.selected {
-            background: #4CAF50;
-            border-color: #45a049;
-        }
-        
         .speed-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -402,45 +373,6 @@
         .speed-option.selected {
             background: #4CAF50;
             border-color: #45a049;
-        }
-        
-        /* v018: モード選択UI */
-        .mode-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            margin-top: 8px;
-        }
-        
-        .mode-option {
-            background: rgba(255,255,255,0.1);
-            border: 1px solid rgba(255,255,255,0.3);
-            color: white;
-            padding: 12px 8px;
-            border-radius: 6px;
-            cursor: pointer;
-            text-align: center;
-            font-size: 12px;
-            transition: all 0.2s ease;
-        }
-        
-        .mode-option:hover {
-            background: rgba(255,255,255,0.2);
-        }
-        
-        .mode-option.selected {
-            background: #4CAF50;
-            border-color: #45a049;
-        }
-        
-        .mode-option .mode-title {
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
-        
-        .mode-option .mode-desc {
-            font-size: 10px;
-            opacity: 0.8;
         }
         
         .settings-option {
@@ -510,8 +442,8 @@
     </style>
 </head>
 <body>
-    <div class="version-display">v018a</div>
-    <div class="mode-indicator" id="modeIndicator">🌐 トーラス</div>
+    <div class="version-display">v22</div>
+    <div class="torus-indicator">🌐 トーラス</div>
     
     <div class="game-container">
         <div class="score-bar">
@@ -544,35 +476,6 @@
         <div class="settings-content">
             <div class="settings-title">設定</div>
             
-            <!-- v018: ゲームモード選択 -->
-            <div class="settings-section">
-                <h4>ゲームモード</h4>
-                <div class="mode-grid">
-                    <div class="mode-option selected" data-mode="classic">
-                        <div class="mode-title">クラシック</div>
-                        <div class="mode-desc">固定フィールド</div>
-                    </div>
-                    <div class="mode-option" data-mode="inflation">
-                        <div class="mode-title">インフレーション</div>
-                        <div class="mode-desc">フィールド拡張</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="settings-section">
-                <h4>フィールドサイズ</h4>
-                <div class="field-size-grid">
-                    <div class="size-option" data-size="5">5×5</div>
-                    <div class="size-option selected" data-size="7">7×7</div>
-                    <div class="size-option" data-size="9">9×9</div>
-                    <div class="size-option" data-size="11">11×11</div>
-                    <div class="size-option" data-size="13">13×13</div>
-                    <div class="size-option" data-size="15">15×15</div>
-                    <div class="size-option" data-size="17">17×17</div>
-                    <div class="size-option" data-size="19">19×19</div>
-                </div>
-            </div>
-            
             <div class="settings-section">
                 <h4>ゲーム速度</h4>
                 <div class="speed-grid">
@@ -589,10 +492,6 @@
                 <div class="settings-option">
                     <label>サウンド効果</label>
                     <input type="checkbox" id="soundEnabled" checked>
-                </div>
-                <div class="settings-option">
-                    <label>BGM</label>
-                    <input type="checkbox" id="musicEnabled">
                 </div>
             </div>
             
@@ -612,13 +511,11 @@
     </div>
 
     <script>
-        // v018a - ミニマル化 + 99×99対応
-        // インフレーション表示削除、音響のみフィードバック
+        // v22 - 設定簡略化版
+        // サイズ選択削除、7×7固定スタート
         
-        // 8色配列（短縮16進数）
         const pipeColors = ['#F00','#F80','#FF0','#8F0','#0F8','#08F','#80F','#F0F'];
         
-        // 動的CSS生成（起動時1回実行）
         function generatePipeStyles() {
             const style = document.createElement('style');
             let css = '';
@@ -629,7 +526,6 @@
             document.head.appendChild(style);
         }
         
-        // ハイスコア管理
         class HighScoreManager {
             constructor() {
                 this.storageKey = 'pipeHighScore';
@@ -662,7 +558,6 @@
             }
         }
         
-        // サウンド管理システム
         class SoundManager {
             constructor() {
                 this.enabled = true;
@@ -679,7 +574,7 @@
                     this.bgmGain.connect(this.audioContext.destination);
                     this.emergencyBeepInterval = null;
                 } catch (error) {
-                    console.log('Web Audio API not supported, using fallback');
+                    console.log('Web Audio API not supported');
                 }
             }
             
@@ -689,7 +584,7 @@
             }
             
             playLoopCompleteSound(loopLength) {
-                // v018: シンプル化（倍音削除）
+                // シンプル化
             }
             
             playBlockDisappearSound() {
@@ -702,18 +597,17 @@
                 this.playTone(150, 0.1, 0.08);
             }
             
-            // v018: インフレーション音
-            playInflationSound() {
-                if (!this.enabled) return;
-                // 宇宙的な上昇音
-                this.playTone(220, 0.5, 0.1);
-                setTimeout(() => this.playTone(330, 0.5, 0.08), 200);
-                setTimeout(() => this.playTone(440, 0.5, 0.06), 400);
-            }
-            
             playEmergencySound() {
                 if (!this.enabled) return;
                 this.startContinuousEmergencySound();
+            }
+            
+            // v20: フィールド拡張音
+            playExpandSound() {
+                if (!this.enabled) return;
+                this.playTone(440, 0.3, 0.1);
+                setTimeout(() => this.playTone(554, 0.3, 0.1), 150);
+                setTimeout(() => this.playTone(659, 0.5, 0.12), 300);
             }
             
             startContinuousEmergencySound() {
@@ -760,9 +654,7 @@
                     
                     source.start(this.audioContext.currentTime);
                     source.stop(this.audioContext.currentTime + duration);
-                } catch (error) {
-                    console.log(`🔊 ホワイトノイズエラー: ${error.message}`);
-                }
+                } catch (error) {}
             }
             
             playGameOverSound() {
@@ -799,9 +691,7 @@
                     
                     oscillator.start(this.audioContext.currentTime);
                     oscillator.stop(this.audioContext.currentTime + duration);
-                } catch (error) {
-                    console.log(`🔊 音再生エラー: ${error.message}`);
-                }
+                } catch (error) {}
             }
             
             setEnabled(enabled) {
@@ -813,7 +703,6 @@
             }
         }
         
-        // ゲームクラス
         class Game {
             constructor() {
                 this.size = 7;
@@ -832,11 +721,6 @@
                 this.disappearingBlocks = new Set();
                 this.wasPausedByModal = false;
                 this.emergencyInterval = null;
-                
-                // v018a: インフレーションモード（99×99対応）
-                this.gameMode = 'classic'; // 'classic' or 'inflation'
-                this.maxSize = 99; // スクリーンセーバー対応
-                
                 this.initBoard();
                 this.setupEventListeners();
             }
@@ -1210,6 +1094,7 @@
                 
                 const score = loop.length * loop.length;
                 this.score += score;
+                
                 this.updateScore();
                 
                 const isNewRecord = highScoreManager.setHighScore(this.score);
@@ -1278,6 +1163,7 @@
                         if (cell) {
                             cell.classList.remove('loop-highlight');
                             cell.classList.add('block-disappear');
+                            
                             soundManager.playBlockDisappearSound();
                         }
                     }, index * 150);
@@ -1392,84 +1278,58 @@
                     this.emergencyTimer--;
                     
                     if (this.emergencyTimer <= 0) {
-                        // v018: インフレーションモード判定
-                        if (this.gameMode === 'inflation' && this.size < this.maxSize) {
-                            this.executeInflation();
-                        } else {
-                            this.gameOver();
-                        }
+                        // v20: インフレモード - 盤面拡張
+                        this.expandField();
                         clearInterval(this.emergencyInterval);
                     }
                 }, 1000);
             }
             
-            // v018a: ミニマル化インフレーション実行
-            executeInflation() {
-                this.emergencyMode = false;
+            // v21: インフレモード - フィールド拡張（通知なし）
+            expandField() {
+                // v21: 最大13×13制限
+                if (this.size >= 13) {
+                    this.realGameOver();
+                    return;
+                }
+                
                 soundManager.stopEmergencySound();
+                soundManager.playExpandSound();
                 
                 const gameContainer = document.querySelector('.game-container');
                 if (gameContainer) gameContainer.classList.remove('emergency-mode');
                 
-                // v018a: メッセージ削除、音のみ
-                soundManager.playInflationSound();
+                const oldSize = this.size;
+                const oldBoard = this.board.map(row => [...row]);
                 
-                // フィールド拡張（短縮タイミング）
-                setTimeout(() => {
-                    this.expandField();
-                    this.resetAfterInflation();
-                }, 1000);
-            }
-            
-            // v018a: 表示関数削除
-            // showInflationDisplay() 削除
-            
-            expandField() {
-                const newSize = this.size + 2;
-                const newBoard = Array(newSize).fill().map(() => Array(newSize).fill(null));
+                this.size += 2;
+                this.initBoard();
                 
-                // 既存盤面を中央に配置
-                const offset = 1;
-                for (let i = 0; i < this.size; i++) {
-                    for (let j = 0; j < this.size; j++) {
-                        if (this.board[i][j]) {
-                            newBoard[i + offset][j + offset] = this.board[i][j];
+                // 既存ブロックを中央に配置
+                for (let i = 0; i < oldSize; i++) {
+                    for (let j = 0; j < oldSize; j++) {
+                        if (oldBoard[i][j]) {
+                            this.board[i + 1][j + 1] = oldBoard[i][j];
                         }
                     }
                 }
                 
-                this.size = newSize;
-                this.board = newBoard;
-                
+                this.emergencyMode = false;
                 this.updatePathColors();
                 this.render();
-                this.updateModeIndicator();
-            }
-            
-            resetAfterInflation() {
-                this.emergencyTimer = 20;
                 
-                if (this.running && !this.paused) {
-                    this.timerInterval = setInterval(() => {
-                        if (!this.running || this.paused || this.emergencyMode) return;
-                        this.addBlock();
-                    }, Math.floor(2000 / this.speedMultiplier));
+                // 通常モードに復帰
+                if (this.timerInterval) {
+                    clearInterval(this.timerInterval);
                 }
+                
+                this.timerInterval = setInterval(() => {
+                    if (!this.running || this.paused || this.emergencyMode) return;
+                    this.addBlock();
+                }, Math.floor(2000 / this.speedMultiplier));
             }
             
-            updateModeIndicator() {
-                const indicator = document.getElementById('modeIndicator');
-                if (indicator) {
-                    if (this.gameMode === 'inflation') {
-                        // v018a: 巨大サイズでも表示
-                        indicator.textContent = `🌌 ${this.size}×${this.size}`;
-                    } else {
-                        indicator.textContent = '🌐 トーラス';
-                    }
-                }
-            }
-            
-            gameOver() {
+            realGameOver() {
                 this.running = false;
                 this.emergencyMode = false;
                 
@@ -1546,16 +1406,14 @@
             }
             
             setSize(newSize) {
-                if (this.size !== newSize) {
-                    this.size = newSize;
-                    this.initBoard();
-                    this.render();
-                }
+                // v21: サイズ変更時も盤面リセットしない（デバッグ用）
+                this.size = newSize;
             }
             
             setSpeed(newSpeed) {
                 this.speedMultiplier = newSpeed;
                 
+                // v19: 速度変更時に盤面リセットしない
                 if (this.running && !this.emergencyMode && this.timerInterval) {
                     clearInterval(this.timerInterval);
                     this.timerInterval = setInterval(() => {
@@ -1564,15 +1422,8 @@
                     }, Math.floor(2000 / this.speedMultiplier));
                 }
             }
-            
-            // v018: ゲームモード設定
-            setGameMode(mode) {
-                this.gameMode = mode;
-                this.updateModeIndicator();
-            }
         }
         
-        // グローバル変数
         let game;
         let highScoreManager;
         let soundManager;
@@ -1593,21 +1444,8 @@
         }
         
         function applySettings() {
-            const selectedMode = document.querySelector('.mode-option.selected');
-            const selectedSize = document.querySelector('.size-option.selected');
             const selectedSpeed = document.querySelector('.speed-option.selected');
             const soundEnabled = document.getElementById('soundEnabled').checked;
-            const musicEnabled = document.getElementById('musicEnabled').checked;
-            
-            if (selectedMode) {
-                const newMode = selectedMode.dataset.mode;
-                game.setGameMode(newMode);
-            }
-            
-            if (selectedSize) {
-                const newSize = parseInt(selectedSize.dataset.size);
-                game.setSize(newSize);
-            }
             
             if (selectedSpeed) {
                 const newSpeed = parseFloat(selectedSpeed.dataset.speed);
@@ -1615,7 +1453,6 @@
             }
             
             soundManager.setEnabled(soundEnabled);
-            soundManager.setMusicEnabled(musicEnabled);
             
             closeSettings();
         }
@@ -1639,6 +1476,9 @@
                 if (game.timerInterval) {
                     clearInterval(game.timerInterval);
                 }
+                if (game.emergencyInterval) {
+                    clearInterval(game.emergencyInterval);
+                }
                 soundManager.stopEmergencySound();
             }
             
@@ -1650,23 +1490,6 @@
         }
         
         function initSettingsUI() {
-            // モード選択
-            document.querySelectorAll('.mode-option').forEach(option => {
-                option.addEventListener('click', () => {
-                    document.querySelectorAll('.mode-option').forEach(o => o.classList.remove('selected'));
-                    option.classList.add('selected');
-                });
-            });
-            
-            // サイズ選択
-            document.querySelectorAll('.size-option').forEach(option => {
-                option.addEventListener('click', () => {
-                    document.querySelectorAll('.size-option').forEach(o => o.classList.remove('selected'));
-                    option.classList.add('selected');
-                });
-            });
-            
-            // 速度選択
             document.querySelectorAll('.speed-option').forEach(option => {
                 option.addEventListener('click', () => {
                     document.querySelectorAll('.speed-option').forEach(o => o.classList.remove('selected'));
